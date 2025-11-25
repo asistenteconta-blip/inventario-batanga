@@ -127,7 +127,7 @@ else:
 # ✅ detectar PRODUCTO GENERICO
 col_prod_bd = next((c for c in df.columns if "PRODUCTO GENER" in c.upper()), None)
 
-PRODUCTO GENÉRICO = sorted(df_sf[col_prod_bd].unique())
+productos = sorted(df_sf[col_prod_bd].unique())
 prod = st.selectbox("Producto:", ["TODOS"] + productos)
 
 if prod=="TODOS":
