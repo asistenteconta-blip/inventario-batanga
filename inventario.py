@@ -400,9 +400,10 @@ def reset_inventario():
     if updates:
         ws_dest.batch_update(updates)
 
-    # Limpiar carrito y comentario en sesión
-    st.session_state["carrito"] = {}
-    st.session_state["comentario_texto"] = ""
+   # Limpiar carrito + comentario correctamente
+st.session_state["carrito"] = {}
+st.session_state.pop("comentario_texto", None)
+
 
 # =========================================================
 #  COMENTARIO EN C3
