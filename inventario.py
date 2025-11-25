@@ -320,7 +320,7 @@ st.subheader("Comentario general del inventario")
 comentario = st.text_area("Comentario:", key="comentario_texto")
 
 if st.button("💬 Guardar comentario en hoja"):
-    ws_dest.update("C3", comentario)
+    ws_dest.update("C3", Comentario)
     st.success("Comentario guardado en C3.")
 
 
@@ -337,4 +337,5 @@ with c1:
 with c2:
     if st.button("🧹 Resetear inventario"):
         reset_inventario()
+
 
