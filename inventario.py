@@ -411,8 +411,8 @@ def guardar_inventario():
 
     for _, row in tabla_editada.iterrows():
         prod = str(row["PRODUCTO"]).strip().upper()
-        cerrado = row["CANTIDAD CERRADO"]
-        abierto = row["CANTIDAD ABIERTO (PESO)"]
+        cerrado = row["CERRADO"]
+        abierto = row["ABIERTO(PESO)"]
 
         if prod not in prod_row_map:
             continue
@@ -544,6 +544,7 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
