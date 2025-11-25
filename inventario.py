@@ -324,7 +324,7 @@ tabla_editada = st.data_editor(
 # =======================================
 #  VISTA PREVIA DE VALOR INVENTARIO
 # =======================================
-
+st.subheader("Vista Previa")
 merge_cols = [
     "PRODUCTO GENÉRICO",
     "PRECIO NETO",
@@ -544,4 +544,5 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
