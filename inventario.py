@@ -303,10 +303,10 @@ n = len(productos)
 
 tabla_base = pd.DataFrame({
     "PRODUCTO": productos,
-    "UNIDAD RECETA": df_sel["UNIDAD RECETA"].values,
-    "CANTIDAD DE UNIDAD DE MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
-    "CANTIDAD CERRADO": [0.0] * n,
-    "CANTIDAD ABIERTO (PESO)": [0.0] * n,
+    "UNIDAD": df_sel["UNIDAD RECETA"].values,
+    "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
+    "CERRADO": [0.0] * n,
+    "ABIERTO(PESO)": [0.0] * n,
 })
 
 editable_cols = ["CANTIDAD CERRADO", "CANTIDAD ABIERTO (PESO)"]
@@ -544,6 +544,7 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
