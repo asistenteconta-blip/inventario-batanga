@@ -428,6 +428,7 @@ with col_reset:
         st.session_state["confirm_reset"] = True
 
 # Confirmación de reset
+# Confirmación de reset
 if st.session_state.get("confirm_reset", False):
     st.warning(
         "⚠ ¿Seguro que quieres eliminar los datos de "
@@ -445,5 +446,7 @@ if st.session_state.get("confirm_reset", False):
     with c2:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
-            st.session_state["confirm_reset"] = False
+            st.session_state["confirm_reset"] = False
+
+
 
