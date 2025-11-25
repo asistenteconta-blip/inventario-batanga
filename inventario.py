@@ -489,11 +489,6 @@ def reset_inventario():
             letra = colnum_to_colletter(col_abierto)
             updates.append({"range": f"{letra}{r}", "values": [[0]]})
 
-        # === Reset VALOR INVENTARIO ===
-        if col_valor:
-            letra = colnum_to_colletter(col_valor)
-            updates.append({"range": f"{letra}{r}", "values": [[0]]})
-
         # === Reset FECHA ===
         if col_fecha:
             letra = colnum_to_colletter(col_fecha)
@@ -549,3 +544,4 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
+
