@@ -309,7 +309,7 @@ tabla_base = pd.DataFrame({
     "ABIERTO(PESO)": [0.0] * n,
 })
 
-editable_cols = ["CANTIDAD CERRADO", "CANTIDAD ABIERTO (PESO)"]
+editable_cols = ["CERRADO", "ABIERTO(PESO)"]
 
 st.subheader("Listado de productos")
 
@@ -544,6 +544,7 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
