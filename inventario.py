@@ -337,8 +337,8 @@ df_merge = df_sel[merge_cols].rename(
 previo = tabla_editada.merge(df_merge, on="PRODUCTO", how="left")
 
 previo["VALOR INVENTARIO (PREVIO)"] = (
-    previo["PRECIO NETO"] * previo["CANTIDAD CERRADO"]
-    + previo["COSTO X UNIDAD"] * previo["CANTIDAD ABIERTO (PESO)"]
+    previo["PRECIO NETO"] * previo["CERRADO"]
+    + previo["COSTO X UNIDAD"] * previo["ABIERTO(PESO)"]
 )
 
 previo["VALOR INVENTARIO (PREVIO)"] = previo["VALOR INVENTARIO (PREVIO)"].round(2)
@@ -544,6 +544,7 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
