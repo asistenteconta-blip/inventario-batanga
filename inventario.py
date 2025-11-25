@@ -5,7 +5,7 @@ from datetime import date
 from google.oauth2.service_account import Credentials
 
 # =========================================================
-#  CONFIGURACIÓN GOOGLE SHEETS — CORREGIDO
+#  CONFIGURACIÓN GOOGLE SHEETS
 # =========================================================
 
 scope = [
@@ -13,7 +13,7 @@ scope = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# NOMBRE DEL DOCUMENTO
+# NOMBRE DEL DOCUMENTO (se sigue usando por nombre)
 DOC_NAME = "Copia de MACHOTE INV BATANGA DDMMAAAA  ACT25"
 
 # --- CREDENCIALES DESDE secrets.toml ---
@@ -26,15 +26,26 @@ credentials = Credentials.from_service_account_info(
 
 client = gspread.authorize(credentials)
 
+
 # Abrir el Doc solo una vez usando cache
 @st.cache_resource(show_spinner=False)
 def get_doc():
-    return client.open(DOC_NAME)
+    try:
+        # Si más adelante quieres usar ID:
+        # return client.open_by_key("TU_SPREADSHEET_ID_AQUI")
+        return client.open(DOC_NAME)
+    except Exception as e:
+        st.error(
+            f"❌ No se pudo abrir el documento de Google Sheets.\n\n"
+            f"Nombre: '{DOC_NAME}'\n\n"
+            f"Revisa que:\n"
+            f"- El nombre del archivo es correcto.\n"
+            f"- El service account tiene acceso (como Editor).\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
 
 doc = get_doc()
-
-
-
 
 BD_TAB = "BD_productos"
 INV_CO = "INVENTARIO_COCINA"
@@ -48,9 +59,27 @@ INV_BA = "INVENTARIO_BARRA"
 
 @st.cache_data(show_spinner=False)
 def get_bd_df_cached():
-    ws = doc.worksheet("BD_productos")
+    try:
+        ws = doc.worksheet(BD_TAB)
+    except Exception as e:
+        st.error(
+            f"❌ No se pudo abrir la hoja '{BD_TAB}'.\n\n"
+            f"Revisa que exista en el archivo y que el service account tenga permisos.\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
 
-    raw = ws.get_all_values(value_render_option="UNFORMATTED_VALUE")
+    try:
+        raw = ws.get_all_values(value_render_option="UNFORMATTED_VALUE")
+    except Exception as e:
+        st.error(
+            f"❌ Error leyendo los datos de la hoja '{BD_TAB}'.\n\n"
+            f"Posibles causas:\n"
+            f"- Falta de permisos.\n"
+            f"- Límite de uso de la API.\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
 
     if not raw or len(raw) < 2:
         st.error("❌ La hoja BD_productos está vacía o no tiene datos.")
@@ -76,52 +105,95 @@ def get_bd_df_cached():
                 df[col]
                 .astype(str)
                 .str.replace(" ", "")
-                .str.replace(",", "")     # quitar miles
+                .str.replace(",", "")
             )
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
 
     return df
 
 
-
-
 def get_dest_sheet(area: str):
-    # Crear un diccionario: {"NOMBRE_MAYUS": worksheet}
-    hojas = {ws.title.upper(): ws for ws in doc.worksheets()}
+    """
+    Devuelve la hoja de inventario destino según el área.
+    Hace un manejo robusto de errores por si falla la lectura de worksheets().
+    """
+    try:
+        hojas_list = doc.worksheets()
+    except Exception as e:
+        st.error(
+            "❌ Error al obtener la lista de hojas del documento de Google Sheets.\n\n"
+            "Posibles causas:\n"
+            "- El service account no tiene permisos sobre el archivo.\n"
+            "- Se alcanzó el límite de la API de Google Sheets.\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
+
+    # Diccionario: {"NOMBRE_EN_MAYUS": worksheet}
+    hojas = {ws.title.strip().upper(): ws for ws in hojas_list}
+
+    # Normalizar el área seleccionada
+    area_norm = area.strip().upper()
 
     # Mapear el área a la hoja correspondiente
-    if area == "COCINA":
+    if area_norm == "COCINA":
         target = INV_CO.upper()
-    elif area == "CONSUMIBLE":
+    elif area_norm in ("CONSUMIBLE", "SUMINISTROS"):
         target = INV_SU.upper()
-    elif area == "BARRA":
+    elif area_norm == "BARRA":
         target = INV_BA.upper()
     else:
-        return None
+        st.error(
+            f"❌ El área seleccionada ('{area}') no tiene una hoja asociada.\n\n"
+            "Áreas esperadas: COCINA, CONSUMIBLE, BARRA."
+        )
+        st.stop()
 
     # Buscar la hoja exacta en mayúsculas
     if target in hojas:
         return hojas[target]
 
-    # Error informativo si no coincide
-    st.error(f"❌ No se encontró la hoja '{target}' en Google Sheets.")
-    st.write("Estas son las hojas disponibles en tu archivo:")
-    st.write(list(hojas.keys()))
+    st.error(
+        f"❌ No se encontró la hoja '{target}' en el archivo de Google Sheets.\n\n"
+        "Hojas disponibles:\n"
+        + ", ".join(hojas.keys())
+    )
     st.stop()
-
 
 
 def get_header_map(ws):
     """
     Devuelve un dict: NOMBRE_COLUMNA_MAYUS -> índice (1-based)
     Asume que la fila 3 de la hoja de inventario contiene los encabezados.
+    Maneja APIError para dar un mensaje entendible.
     """
-    header_row = ws.row_values(3)
+    try:
+        header_row = ws.row_values(3)
+    except Exception as e:
+        st.error(
+            f"❌ Error leyendo la fila 3 de la hoja '{ws.title}'.\n\n"
+            "Posibles causas:\n"
+            "- La hoja tiene permisos restringidos o rangos protegidos.\n"
+            "- El service account no tiene permiso para leer esa hoja.\n"
+            "- La API de Google rechazó la petición (rate limit).\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
+
+    if not header_row:
+        st.error(
+            f"⚠ La fila 3 de la hoja '{ws.title}' está vacía.\n\n"
+            "Debes asegurarte de que en la fila 3 estén los encabezados "
+            "(PRODUCTO GENÉRICO, CANTIDAD CERRADO, etc.)."
+        )
+        st.stop()
+
     header_map = {}
     for idx, name in enumerate(header_row, start=1):
-        normalized = name.strip().upper()
+        normalized = str(name).strip().upper()
         if normalized:
             header_map[normalized] = idx
+
     return header_map
 
 
@@ -130,7 +202,16 @@ def get_product_row_map(ws, col_idx_producto: int):
     Devuelve dict: PRODUCTO_GENÉRICO_MAYUS -> fila donde está
     Asume datos desde la fila 4 hacia abajo.
     """
-    productos_col = ws.col_values(col_idx_producto)
+    try:
+        productos_col = ws.col_values(col_idx_producto)
+    except Exception as e:
+        st.error(
+            f"❌ Error leyendo la columna de productos en la hoja '{ws.title}'.\n\n"
+            "Revisa permisos del service account o que la hoja exista correctamente.\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
+
     mapping = {}
     for row_idx in range(4, len(productos_col) + 1):
         nombre = str(productos_col[row_idx - 1]).strip().upper()
@@ -177,7 +258,7 @@ st.markdown("---")
 #  FILTROS: ÁREA, CATEGORIA, SUB FAMILIA, PRODUCTO
 # =======================================
 
-areas = sorted([a for a in df["ÁREA"].unique() if a.upper() != "GASTO"])
+areas = sorted([a for a in df["ÁREA"].unique() if str(a).upper() != "GASTO"])
 area = st.selectbox("Área:", areas)
 
 df_area = df[df["ÁREA"] == area]
@@ -215,7 +296,6 @@ st.markdown("---")
 
 # =======================================
 #  TABLA EDITABLE
-#  (PRODUCTO + UNIDAD + CANTIDAD UDM + CERRADO + ABIERTO)
 # =======================================
 
 productos = df_sel["PRODUCTO GENÉRICO"].tolist()
@@ -243,7 +323,6 @@ tabla_editada = st.data_editor(
 
 # =======================================
 #  VISTA PREVIA DE VALOR INVENTARIO
-#  (PRECIO NETO * CERRADO + COSTO X UNIDAD * ABIERTO)
 # =======================================
 
 merge_cols = [
@@ -274,7 +353,6 @@ st.dataframe(
     use_container_width=True,
 )
 
-
 st.info(
     "El VALOR INVENTARIO final lo sigue calculando Google Sheets. "
     "Aquí solo ves una vista previa para revisar antes de guardar."
@@ -295,7 +373,11 @@ header_map = get_header_map(ws_dest)
 prod_col_name = "PRODUCTO GENÉRICO"
 
 if prod_col_name not in header_map:
-    st.error("No se encontró la columna 'PRODUCTO GENÉRICO' en la hoja de inventario.")
+    st.error(
+        "No se encontró la columna 'PRODUCTO GENÉRICO' en la hoja de inventario.\n\n"
+        f"Encabezados detectados en la fila 3 de '{ws_dest.title}':\n"
+        + ", ".join(header_map.keys())
+    )
     st.stop()
 
 col_prod = header_map[prod_col_name]
@@ -365,11 +447,17 @@ def guardar_inventario():
 
     # Ejecutar todo en una sola llamada
     if updates:
-        ws_dest.batch_update(updates)
+        try:
+            ws_dest.batch_update(updates)
+        except Exception as e:
+            st.error(
+                f"❌ Error al guardar los datos en la hoja '{ws_dest.title}'.\n\n"
+                "Revisa que la hoja no esté protegida y que el service account tenga permisos.\n\n"
+                f"Error técnico: {e}"
+            )
+            st.stop()
 
     return filas_actualizadas
-
-
 
 
 def reset_inventario():
@@ -377,7 +465,16 @@ def reset_inventario():
     updates = []
 
     # Obtener la cantidad total de filas de la hoja
-    total_rows = len(ws_dest.col_values(col_prod))
+    try:
+        productos_col = ws_dest.col_values(col_prod)
+    except Exception as e:
+        st.error(
+            f"❌ Error leyendo la columna de productos al resetear en '{ws_dest.title}'.\n\n"
+            f"Error técnico: {e}"
+        )
+        st.stop()
+
+    total_rows = len(productos_col)
 
     # Recorremos TODAS las filas válidas (desde la 4)
     for r in range(4, total_rows + 1):
@@ -406,10 +503,16 @@ def reset_inventario():
 
     # Ejecutar en 1 sola llamada
     if updates:
-        ws_dest.batch_update(updates)
+        try:
+            ws_dest.batch_update(updates)
+        except Exception as e:
+            st.error(
+                f"❌ Error al resetear datos en la hoja '{ws_dest.title}'.\n\n"
+                f"Error técnico: {e}"
+            )
+            st.stop()
 
     return filas_reseteadas
-
 
 
 # =======================================
@@ -428,12 +531,11 @@ with col_reset:
         st.session_state["confirm_reset"] = True
 
 # Confirmación de reset
-# Confirmación de reset
 if st.session_state.get("confirm_reset", False):
     st.warning(
         "⚠ ¿Seguro que quieres eliminar los datos de "
         "CANTIDAD CERRADO, CANTIDAD ABIERTO (PESO), "
-        "VALOR INVENTARIO y FECHA para los productos filtrados?"
+        "VALOR INVENTARIO y FECHA para los productos del área?"
     )
 
     c1, c2 = st.columns(2)
@@ -447,6 +549,3 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada, no se modificó nada.")
             st.session_state["confirm_reset"] = False
-
-
-
