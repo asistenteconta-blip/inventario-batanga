@@ -89,7 +89,7 @@ def get_dest_sheet(area):
 
 
 def get_header_map(ws):
-    header_row = ws.row_values(3)
+    header_row = ws.row_values(4)
     return {
         str(h).strip().upper(): idx
         for idx, h in enumerate(header_row, start=1)
@@ -337,3 +337,4 @@ with c1:
 with c2:
     if st.button("🧹 Resetear inventario"):
         reset_inventario()
+
