@@ -116,15 +116,20 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 
 if df_sel.empty: st.stop()
 
-# ================================
-# 🔥 TABLA SIN BORRADO — MODO ESTABLE
-# ================================
+# =========================================================
+# 🔥 TABLA CON MEMORIA AL VOLVER A CATEGORÍA — FIX REAL
+# =========================================================
 
-key = f"{area}|{categoria}|{subfam}|{prod_sel}"
+# llave general del estado del inventario por área/categoría/subfam
+key_base = f"{area}|{categoria}|{subfam}"
 
-# Si no existe memoria → crear tabla base
-if key not in st.session_state["memory"]:
-    st.session_state["memory"][key] = pd.DataFrame({
+# Si no existe registro previo → se crea vacío
+if key_base not in st.session_state["memory"]:
+    st.session_state["memory"][key_base] = {}
+
+# Si no existe tabla guardada para la selección actual → Crear una
+if prod_sel not in st.session_state["memory"][key_base]:
+    st.session_state["memory"][key_base][prod_sel] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
@@ -133,20 +138,19 @@ if key not in st.session_state["memory"]:
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
     })
 
-st.subheader("Ingresar inventario")
+# Cargar la tabla guardada
+df_edit = st.session_state["memory"][key_base][prod_sel].copy()
 
-# Se edita pero NO se sobreescribe aún
 df_edit = st.data_editor(
-    st.session_state["memory"][key],
-    key=f"editor_{key}",
+    df_edit,
+    key=f"edit_{key_base}_{prod_sel}",
     use_container_width=True,
-    disabled=["PRODUCTO","UNIDAD","MEDIDA"]
+    disabled=["PRODUCTO","UNIDAD","MEDIDA"],
 )
 
-# 🔥 Botón que ahora sí guarda la tabla sin perder escritura
-if st.button("💾 Guardar cambios en memoria de la tabla"):
-    st.session_state["memory"][key] = df_edit
-    st.success("Valores aplicados sin borrarse ✔")
+# Guardar cambios
+st.session_state["memory"][key_base][prod_sel] = df_edit.copy()
+
 
 
 # =========================================================
@@ -257,6 +261,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
