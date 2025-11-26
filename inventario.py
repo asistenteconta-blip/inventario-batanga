@@ -196,23 +196,30 @@ def guardar():
 # RESET
 # =========================================================
 def reset_inventario():
-    updates=[]
+    updates = []
+
     for r in rows.values():
-        if cCer: updates.append({"range":f"{colletter(cCer)}{r}","values":[[0]]})
-        if cAb: updates.append({"range":f"{colletter(cAb)}{r}","values":[[0]]})
-        if cBot: updates.append({"range":f"{colletter(cBot)}{r}","values":[[0]]})
-       if cFecha:
-    updates.append({
-        "range": f"{colletter(cFecha)}{r}",
-        "values": [[""]]
-    })
+        if cCer:
+            updates.append({"range": f"{colletter(cCer)}{r}", "values": [[0]]})
 
+        if cAb:
+            updates.append({"range": f"{colletter(cAb)}{r}", "values": [[0]]})
 
+        if cBot:
+            updates.append({"range": f"{colletter(cBot)}{r}", "values": [[0]]})
 
-    updates.append({"range":"C3","values":[[""]]})
-    ws.batch_update(updates)
+        if cFecha:
+            updates.append({"range": f"{colletter(cFecha)}{r}", "values": [[""]]})
 
-    st.session_state.pop("comentario_texto",None)
+    # Borrar comentario C3
+    updates.append({"range": "C3", "values": [[""]]})
+
+    if updates:
+        ws.batch_update(updates)
+
+    # Limpiar variables de sesión sin romper la app
+    st.session_state.pop("comentario_texto", None)
+
 
 # =========================================================
 # COMENTARIO
@@ -248,6 +255,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
