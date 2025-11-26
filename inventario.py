@@ -117,17 +117,15 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 if df_sel.empty: st.stop()
 
 # =========================================================
-# 🔥 TABLA CON MEMORIA AL VOLVER A CATEGORÍA — FIX REAL
+# 🔥 TABLA CON MEMORIA - SIN DOBLE DIGITACIÓN REAL 🔥
 # =========================================================
 
-# llave general del estado del inventario por área/categoría/subfam
 key_base = f"{area}|{categoria}|{subfam}"
 
-# Si no existe registro previo → se crea vacío
+# Crear espacio si no existe
 if key_base not in st.session_state["memory"]:
     st.session_state["memory"][key_base] = {}
 
-# Si no existe tabla guardada para la selección actual → Crear una
 if prod_sel not in st.session_state["memory"][key_base]:
     st.session_state["memory"][key_base][prod_sel] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
@@ -138,18 +136,22 @@ if prod_sel not in st.session_state["memory"][key_base]:
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
     })
 
-# Cargar la tabla guardada
-df_edit = st.session_state["memory"][key_base][prod_sel].copy()
+# 🔥 función que guarda automáticamente al pulsar una celda
+def guardar_cambios():
+    st.session_state["memory"][key_base][prod_sel] = st.session_state["EDIT_TABLE"].copy()
+
+st.subheader("Ingresar inventario")
 
 df_edit = st.data_editor(
-    df_edit,
-    key=f"edit_{key_base}_{prod_sel}",
+    st.session_state["memory"][key_base][prod_sel],
+    key="EDIT_TABLE",
     use_container_width=True,
     disabled=["PRODUCTO","UNIDAD","MEDIDA"],
+    on_change=guardar_cambios,       # <<<<<<🔥 CAMBIO CLAVE
 )
 
-# Guardar cambios
-st.session_state["memory"][key_base][prod_sel] = df_edit.copy()
+# Asegura sincronización final
+st.session_state["memory"][key_base][prod_sel] = st.session_state["EDIT_TABLE"].copy()
 
 
 
@@ -261,6 +263,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
