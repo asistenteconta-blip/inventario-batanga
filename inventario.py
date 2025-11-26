@@ -175,24 +175,26 @@ if tabla_key not in st.session_state:
         "ABIERTO(PESO)": [0.0]*len(df_sel),
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
     })
-    st.session_state[tabla_key] = base.copy()   # << Guarda inicial SOLO una vez
 
+# Editor siempre usa la memoria como origen
+df_edit = st.session_state[tabla_key].copy()
 
-# 🟢 siempre se usa la versión guardada, NUNCA se reconstruye
-df_edit = st.session_state[tabla_key]
+# 🔥 Callback que graba automáticamente apenas se edita una celda
+def sync():
+    st.session_state[tabla_key] = st.session_state[f"editor_{tabla_key}"].copy()
 
-st.subheader("Ingresar Inventario (necesita ingresar los valores dos veces por seguridad)")
+st.subheader("Ingresar inventario (Guarda en 1 intento ✔)")
 
 df_edit = st.data_editor(
     df_edit,
     key=f"editor_{tabla_key}",
     use_container_width=True,
-    disabled=["PRODUCTO","UNIDAD","MEDIDA"]
+    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
+    on_change=sync   # ← 💥 ESTA LÍNEA ES LA SOLUCIÓN
 )
 
-# 🔥 si el usuario editó algo → se guarda INMEDIATO antes del refresco
-if not df_edit.equals(st.session_state[tabla_key]):
-    st.session_state[tabla_key] = df_edit.copy()
+# la tabla real queda guardada en session_state SIEMPRE
+tabla_activa = st.session_state[tabla_key]
 
 
 
@@ -406,6 +408,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
