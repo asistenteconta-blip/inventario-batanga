@@ -40,6 +40,15 @@ DATA_START = 5
 if "confirm_reset" not in st.session_state:
     st.session_state["confirm_reset"] = False
 
+# memoria interna para valores y tablas por combinación de filtros
+if "inv_vals" not in st.session_state:
+    # clave: f"{AREA}|{CATEGORIA}|{SUBFAM}|{PRODUCTO}"
+    st.session_state["inv_vals"] = {}
+
+if "tablas" not in st.session_state:
+    # clave: f"{AREA}|{CATEGORIA}|{SUBFAM}|{PROD_SEL}"
+    st.session_state["tablas"] = {}
+
 # =========================================================
 # BASE DE DATOS PRINCIPAL
 # =========================================================
@@ -177,32 +186,65 @@ if df_sel.empty:
     st.info("No hay productos con los filtros seleccionados.")
     st.stop()
 
+area_key = area.upper()
+categoria_key = categoria.upper()
+subfam_key = subfam.upper()
+
 # =========================================================
-# TABLA EDITABLE (sin carrito / sin memoria)
+# TABLA EDITABLE CON PERSISTENCIA POR ÁREA + CATEGORÍA + SUBFAM
 # =========================================================
 
 st.subheader("Ingresar inventario")
 
-base = {
-    "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].values,
-    "UNIDAD": df_sel["UNIDAD RECETA"].values,
-    "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
-    "CERRADO": [0.0] * len(df_sel),
-    "ABIERTO(PESO)": [0.0] * len(df_sel),
-}
+tabla_key = f"{area_key}|{categoria_key}|{subfam_key}|{prod_sel}"
 
-if area.upper() == "BARRA":
-    base["BOTELLAS_ABIERTAS"] = [0.0] * len(df_sel)
-else:
-    base["BOTELLAS_ABIERTAS"] = [""] * len(df_sel)
+if tabla_key not in st.session_state["tablas"]:
+    filas = []
+    for _, row in df_sel.iterrows():
+        prod = row["PRODUCTO GENÉRICO"]
+        prod_key = f"{area_key}|{categoria_key}|{subfam_key}|{prod.upper()}"
+        prev_vals = st.session_state["inv_vals"].get(
+            prod_key,
+            {"CERRADO": 0.0, "ABIERTO(PESO)": 0.0, "BOTELLAS_ABIERTAS": 0.0},
+        )
 
-tabla = pd.DataFrame(base)
+        filas.append({
+            "PRODUCTO": prod,
+            "UNIDAD": row["UNIDAD RECETA"],
+            "MEDIDA": row["CANTIDAD DE UNIDAD DE MEDIDA"],
+            "CERRADO": prev_vals.get("CERRADO", 0.0),
+            "ABIERTO(PESO)": prev_vals.get("ABIERTO(PESO)", 0.0),
+            "BOTELLAS_ABIERTAS": prev_vals.get("BOTELLAS_ABIERTAS", 0.0)
+                if area_key == "BARRA" else "",
+        })
+
+    st.session_state["tablas"][tabla_key] = pd.DataFrame(filas)
+
+tabla_actual = st.session_state["tablas"][tabla_key]
+
+editable_cols = ["CERRADO", "ABIERTO(PESO)"]
+if area_key == "BARRA":
+    editable_cols.append("BOTELLAS_ABIERTAS")
 
 df_edit = st.data_editor(
-    tabla,
+    tabla_actual,
     use_container_width=True,
-    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
+    disabled=[c for c in tabla_actual.columns if c not in editable_cols],
+    key=f"editor_{tabla_key}",
 )
+
+# guardar tabla actualizada
+st.session_state["tablas"][tabla_key] = df_edit
+
+# guardar valores en memoria persistente
+for _, r in df_edit.iterrows():
+    prod = str(r["PRODUCTO"])
+    prod_key = f"{area_key}|{categoria_key}|{subfam_key}|{prod.upper()}"
+    st.session_state["inv_vals"][prod_key] = {
+        "CERRADO": safe_float(r["CERRADO"]),
+        "ABIERTO(PESO)": safe_float(r["ABIERTO(PESO)"]),
+        "BOTELLAS_ABIERTAS": safe_float(r["BOTELLAS_ABIERTAS"]) if area_key == "BARRA" else 0.0,
+    }
 
 # =========================================================
 # VISTA PREVIA
@@ -216,19 +258,19 @@ merge = df_sel[merge_cols].rename(columns={"PRODUCTO GENÉRICO": "PRODUCTO"})
 prev = df_edit.merge(merge, on="PRODUCTO", how="left")
 
 prev["VALOR INVENTARIO"] = (
-    safe_float(prev["PRECIO NETO"]) * safe_float(prev["CERRADO"])
-    + safe_float(prev["COSTO X UNIDAD"]) * safe_float(prev["ABIERTO(PESO)"])
+    prev["PRECIO NETO"].astype(float) * prev["CERRADO"].astype(float)
+    + prev["COSTO X UNIDAD"].astype(float) * prev["ABIERTO(PESO)"].astype(float)
 )
 prev["VALOR INVENTARIO"] = prev["VALOR INVENTARIO"].round(2)
 
 filtro = (prev["CERRADO"] != 0) | (prev["ABIERTO(PESO)"] != 0)
-if area.upper() == "BARRA":
+if area_key == "BARRA":
     filtro |= (prev["BOTELLAS_ABIERTAS"] != 0)
 
 prev_filtrado = prev[filtro]
 
 cols = ["PRODUCTO", "CERRADO", "ABIERTO(PESO)"]
-if area.upper() == "BARRA":
+if area_key == "BARRA":
     cols.append("BOTELLAS_ABIERTAS")
 cols.append("VALOR INVENTARIO")
 
@@ -287,7 +329,7 @@ def guardar_inventario():
                 "values": [[safe_float(r["ABIERTO(PESO)"])]],
             })
 
-        if area.upper() == "BARRA" and col_botellas:
+        if area_key == "BARRA" and col_botellas:
             updates.append({
                 "range": f"{colletter(col_botellas)}{row_idx}",
                 "values": [[safe_float(r["BOTELLAS_ABIERTAS"])]],
@@ -303,7 +345,7 @@ def guardar_inventario():
         ws.batch_update(updates)
 
 # =========================================================
-# RESET INVENTARIO (incluye comentario C3)
+# RESET INVENTARIO (incluye comentario C3 y memoria interna)
 # =========================================================
 
 def reset_inventario():
@@ -341,6 +383,17 @@ def reset_inventario():
 
     if updates:
         ws.batch_update(updates)
+
+    # Limpiar memoria interna de ese área (todas las categorías)
+    prefix = f"{area_key}|"
+    st.session_state["inv_vals"] = {
+        k: v for k, v in st.session_state["inv_vals"].items()
+        if not k.startswith(prefix)
+    }
+    st.session_state["tablas"] = {
+        k: v for k, v in st.session_state["tablas"].items()
+        if not k.startswith(prefix)
+    }
 
 # =========================================================
 # COMENTARIO EN C3
