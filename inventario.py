@@ -160,34 +160,42 @@ if df_sel.empty:
 
 
 # =========================================================
-# 📌 TABLA EDITABLE CON MEMORIA REAL — SIN DOBLE INGRESO
+# TABLA EDITABLE – MEMORIA POR ÁREA/CATEGORIA/SUBFAM
 # =========================================================
 
-tabla_key = f"inv|{area}|{categoria}|{subfam}"  # 🔥 solo memoria por combinación
+tabla_key = f"tabla|{area}|{categoria}|{subfam}"
 
-# 🟢 SOLO se crea la primera vez
+# 1) Crear solo una vez por selección
 if tabla_key not in st.session_state:
-    base = pd.DataFrame({
+
+    data = {
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
-        "CERRADO": [0.0]*len(df_sel),
-        "ABIERTO(PESO)": [0.0]*len(df_sel),
+        "CERRADO": [0.0] * len(df_sel),
+        "ABIERTO(PESO)": [0.0] * len(df_sel),
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
-    })
+    }
 
-# 🔥 Editor directo usando session_state (no se borra al escribir)
+    st.session_state[tabla_key] = pd.DataFrame(data)
+
+# 2) SIEMPRE usar el último guardado
+df_edit = st.session_state.get(tabla_key).copy()
+
+st.subheader("Ingresar inventario (guarda sin doble entrada)")
+
+# 3) Editor que NO borra valores al escribir
 df_edit = st.data_editor(
-    st.session_state[tabla_key],
+    df_edit,
     key=f"editor_{tabla_key}",
     use_container_width=True,
-    disabled=["PRODUCTO","UNIDAD","MEDIDA"]
+    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"]
 )
 
-# 🟢 Guardado AUTOMÁTICO sin tener que escribir 2 veces
+# 4) Guardado inmediato 🔥 SIN DOBLE INGRESO
 st.session_state[tabla_key] = df_edit.copy()
 
-# Tabla activa final para usar en guardar()
+# 5) Esta tabla ya no se borra, no pide segundo ingreso
 tabla_final = st.session_state[tabla_key]
 
 
@@ -401,6 +409,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
