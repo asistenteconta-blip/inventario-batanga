@@ -132,35 +132,38 @@ df_sel = df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod
 if df_sel.empty: st.stop()
 
 # =========================================================
-# 🔥 TABLA CON MEMORIA POR ÁREA + CATEGORÍA + SUBFAM
+# 🔥 TABLA CON MEMORIA SIN DOBLE ESCRITURA
 # =========================================================
 
-key=f"{area}|{categoria}|{subfam}|{prod_sel}"
+key = f"{area}|{categoria}|{subfam}|{prod_sel}"
 
+# Crear memoria si no existe
 if key not in st.session_state["memory"]:
-    base={
-        "PRODUCTO":df_sel["PRODUCTO GENÉRICO"].values,
-        "UNIDAD":df_sel["UNIDAD RECETA"].values,
-        "MEDIDA":df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
-        "CERRADO":[0.0]*len(df_sel),
-        "ABIERTO(PESO)": [0.0]*len(df_sel),
-    }
-    if area.upper()=="BARRA":
-        base["BOTELLAS_ABIERTAS"]=[0.0]*len(df_sel)
-    else:
-        base["BOTELLAS_ABIERTAS"]=[""]*len(df_sel)
+    st.session_state["memory"][key] = pd.DataFrame({
+        "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].values,
+        "UNIDAD": df_sel["UNIDAD RECETA"].values,
+        "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
+        "CERRADO": [0.0] * len(df_sel),
+        "ABIERTO(PESO)": [0.0] * len(df_sel),
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
+    })
 
-    st.session_state["memory"][key]=pd.DataFrame(base)
+# Desacoplar df para que no se borre al refrescar pantalla 🔥
+df_edit = st.session_state["memory"][key].copy()
 
-# Editor sin doble ingreso 🔥
+st.subheader("Ingresar inventario")
+
 df_edit = st.data_editor(
-    st.session_state["memory"][key],
+    df_edit,
     key=f"E_{key}",
     use_container_width=True,
-    disabled=["PRODUCTO","UNIDAD","MEDIDA"]
+    disabled=["PRODUCTO","UNIDAD","MEDIDA"],
 )
 
-st.session_state["memory"][key]=df_edit.copy()  # Guarda inmediato
+# Guardar SOLO si hay cambios (elimina el doble ingreso) 🔥🔥🔥
+if not df_edit.equals(st.session_state["memory"][key]):
+    st.session_state["memory"][key] = df_edit.copy()
+
 
 # =========================================================
 # 📊 Vista previa (solo visual)
@@ -269,5 +272,6 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
