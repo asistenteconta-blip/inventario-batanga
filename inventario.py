@@ -160,43 +160,50 @@ if df_sel.empty:
 
 
 # =========================================================
-# TABLA EDITABLE – MEMORIA POR ÁREA/CATEGORIA/SUBFAM
+# TABLA EDITABLE 100% SIN DOBLE ESCRITURA
 # =========================================================
 
 tabla_key = f"tabla|{area}|{categoria}|{subfam}"
 
-# 1) Crear solo una vez por selección
+# 1) Si no existe en memoria, la creamos una vez
 if tabla_key not in st.session_state:
 
-    data = {
+    st.session_state[tabla_key] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0] * len(df_sel),
         "ABIERTO(PESO)": [0.0] * len(df_sel),
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
-    }
+    })
 
-    st.session_state[tabla_key] = pd.DataFrame(data)
+# 2) Cargamos lo último guardado siempre
+df_edit = st.session_state[tabla_key]
 
-# 2) SIEMPRE usar el último guardado
-df_edit = st.session_state.get(tabla_key).copy()
 
-st.subheader("Ingresar inventario (guarda sin doble entrada)")
+# =========================================================
+# CALLBACK para guardar sin perder la primera escritura
+# =========================================================
+def sync_table():
+    st.session_state[tabla_key] = st.session_state["buffer_table"]
 
-# 3) Editor que NO borra valores al escribir
+
+st.subheader("Ingresar inventario (YA NO SE BORRA NUNCA)")
+
+# 3) usamos un buffer temporal que captura el dato antes del redraw
 df_edit = st.data_editor(
     df_edit,
-    key=f"editor_{tabla_key}",
+    key="buffer_table",
     use_container_width=True,
-    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"]
+    disabled=["PRODUCTO","UNIDAD","MEDIDA"],
+    on_change=sync_table,        # ← 🔥🔥🔥 ESTA ES LA CLAVE
 )
 
-# 4) Guardado inmediato 🔥 SIN DOBLE INGRESO
-st.session_state[tabla_key] = df_edit.copy()
+# 4) sincroniza la tabla en tiempo real sin doble ingreso
+sync_table()
 
-# 5) Esta tabla ya no se borra, no pide segundo ingreso
-tabla_final = st.session_state[tabla_key]
+tabla_final = st.session_state[tabla_key]   # ← ahora SIEMPRE tiene el valor
+
 
 
 
@@ -409,6 +416,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
