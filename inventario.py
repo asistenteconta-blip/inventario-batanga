@@ -174,7 +174,7 @@ if tabla_key not in st.session_state:
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0] * len(df_sel),
-        "ABIERTO(PESO)": [0.0] * len(df_sel),
+        "ABIERTO(PESO)": [0.0] * len(df_sel),                                
     }
 
     if area.upper() == "BARRA":
@@ -185,7 +185,7 @@ if tabla_key not in st.session_state:
     st.session_state[tabla_key] = pd.DataFrame(base)
 
 # Usar SIEMPRE la última versión guardada en session_state
-df_edit = st.session_state[tabla_key]
+df_edit = st.session_state[tabla_key].copy()
 
 st.subheader("Ingresar inventario")
 
@@ -195,6 +195,10 @@ df_edit = st.data_editor(
     use_container_width=True,
     disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
 )
+
+# 🔥 Guardar solo si hay cambios reales (elimina el doble ingreso)
+if not df_edit.equals(st.session_state[tabla_key]):
+    st.session_state[tabla_key] = df_edit.copy()
 
 # Guardar inmediatamente lo que devuelve el editor
 st.session_state[tabla_key] = df_edit
@@ -408,3 +412,4 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
