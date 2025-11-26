@@ -21,11 +21,7 @@ client = gspread.authorize(credentials)
 
 @st.cache_resource(show_spinner=False)
 def get_doc():
-    try:
-        return client.open(DOC_NAME)
-    except Exception as e:
-        st.error(f"❌ No se pudo abrir el documento de Google Sheets:\n{e}")
-        st.stop()
+    return client.open(DOC_NAME)
 
 doc = get_doc()
 
@@ -34,12 +30,11 @@ INV_CO = "INVENTARIO_COCINA"
 INV_SU = "INVENTARIO_SUMINISTROS"
 INV_BA = "INVENTARIO_BARRA"
 
-# Fila donde están los encabezados en las hojas de inventario
 HEADER_ROW = 4
-FIRST_DATA_ROW = 5  # primera fila con productos
+FIRST_DATA_ROW = 5
 
 # =========================================================
-#   CARRITO GLOBAL (Opción C)
+#   🧠 CARRITO GLOBAL (Valores guardados aunque cambies área)
 # =========================================================
 if "carrito" not in st.session_state:
     st.session_state["carrito"] = {}
@@ -47,439 +42,247 @@ if "carrito" not in st.session_state:
 if "confirm_reset" not in st.session_state:
     st.session_state["confirm_reset"] = False
 
-# =========================================================
-#  FUNCIONES AUXILIARES
-# =========================================================
 
+# =========================================================
+#  BASE DE DATOS PRINCIPAL
+# =========================================================
 @st.cache_data(show_spinner=False)
 def get_bd_df_cached():
     ws = doc.worksheet(BD_TAB)
     raw = ws.get_all_values(value_render_option="UNFORMATTED_VALUE")
-
-    if not raw or len(raw) < 2:
-        st.error("❌ La hoja BD_productos está vacía o no tiene datos.")
-        st.stop()
-
     headers = [h.strip() for h in raw[0]]
     df = pd.DataFrame(raw[1:], columns=headers)
 
-    # Normalizar encabezados
     df.columns = df.columns.str.strip().str.upper()
 
-    # Columnas numéricas
-    numeric_cols = [
-        "PRECIO NETO",
-        "CANTIDAD DE UNIDAD DE MEDIDA",
-        "COSTO X UNIDAD",
-    ]
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = (
-                df[col].astype(str)
-                .str.replace(" ", "")
-                .str.replace(",", "")
-            )
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
+    numeric = ["PRECIO NETO","CANTIDAD DE UNIDAD DE MEDIDA","COSTO X UNIDAD"]
+    for col in numeric:
+        df[col] = pd.to_numeric(df[col].astype(str).str.replace(",",""),errors="coerce").fillna(0)
 
     return df
 
+df = get_bd_df_cached()
 
-def get_dest_sheet(area: str):
+
+# =========================================================
+#  HOJAS DESTINO SEGÚN ÁREA
+# =========================================================
+def get_dest_sheet(area):
     hojas = {ws.title.upper(): ws for ws in doc.worksheets()}
-    area_norm = area.strip().upper()
+    area = area.upper()
 
-    if area_norm == "COCINA":
-        target = INV_CO.upper()
-    elif area_norm in ("CONSUMIBLE", "SUMINISTROS"):
-        target = INV_SU.upper()
-    elif area_norm == "BARRA":
-        target = INV_BA.upper()
-    else:
-        st.error(f"❌ Área inválida: {area}")
-        st.stop()
+    if area=="COCINA": return hojas[INV_CO.upper()]
+    if area in ("CONSUMIBLE","SUMINISTROS"): return hojas[INV_SU.upper()]
+    if area=="BARRA": return hojas[INV_BA.upper()]
 
-    if target not in hojas:
-        st.error(
-            f"❌ No se encontró la hoja '{target}' en el archivo.\n\n"
-            "Hojas disponibles:\n" + ", ".join(hojas.keys())
-        )
-        st.stop()
-
-    return hojas[target]
+    st.error("Área inválida"); st.stop()
 
 
 def get_header_map(ws):
-    # Ahora los encabezados están en la fila 4
-    header_row = ws.row_values(HEADER_ROW)
-    if not header_row:
-        st.error(
-            f"⚠ La fila {HEADER_ROW} de la hoja '{ws.title}' está vacía.\n"
-            "Ahí deben estar los encabezados (PRODUCTO GENÉRICO, etc.)."
-        )
-        st.stop()
-
-    return {
-        str(h).strip().upper(): idx
-        for idx, h in enumerate(header_row, start=1)
-        if str(h).strip()
-    }
+    header = ws.row_values(HEADER_ROW)
+    return {h.strip().upper():i for i,h in enumerate(header,start=1) if h.strip()}
 
 
-def get_product_row_map(ws, col_idx_producto: int):
-    # Datos empiezan en FIRST_DATA_ROW
-    col = ws.col_values(col_idx_producto)
-    mapping = {}
-    for row_idx in range(FIRST_DATA_ROW, len(col) + 1):
-        nombre = str(col[row_idx - 1]).strip().upper()
-        if nombre:
-            mapping[nombre] = row_idx
-    return mapping
+def get_product_row_map(ws, col):
+    col_vals = ws.col_values(col)
+    return {str(col_vals[i-1]).upper():i for i in range(FIRST_DATA_ROW,len(col_vals)+1)}
 
 
-def colnum_to_colletter(n: int) -> str:
-    s = ""
-    while n > 0:
-        n, r = divmod(n - 1, 26)
-        s = chr(r + ord("A")) + s
+def colnum_to_colletter(n):
+    s=""; 
+    while n>0: n,r=divmod(n-1,26); s=chr(r+65)+s
     return s
 
-# =========================================================
-#  CARGAR BD
-# =========================================================
-
-df = get_bd_df_cached()
 
 # =========================================================
-#  UI PRINCIPAL
+#  UI
 # =========================================================
+st.title("📦 Sistema Inventario Batanga / Aguizotes")
 
-st.title("📦 Sistema de Inventario Diario – Restaurante")
+st.warning("⚠ Revise la vista previa antes de guardar. El reset borra TODO del área + comentario.")
 
-st.warning(
-    """
-    ⚠ *Atención al registrar inventario*
-    
-    - Verifique que las *unidades* se ingresen correctamente.  
-    - El botón *RESET* borra TODO el inventario del área (y limpia el carrito y el comentario).  
-    - Revise la vista previa antes de guardar.
-    """,
-    icon="⚠"
-)
 
-fecha_inv = st.date_input("Fecha de inventario:", value=date.today())
-fecha_str = fecha_inv.strftime("%d-%m-%Y")
+fecha = st.date_input("Fecha de inventario:",value=date.today())
+fecha_str = fecha.strftime("%d-%m-%Y")
 
-st.markdown("---")
+st.markdown("### Selección de productos")
 
-# =========================================================
-#  FILTROS
-# =========================================================
+# ========= filtros =========
+areas = sorted(df["ÁREA"].unique())
+area = st.selectbox("Área:",areas)
 
-areas = sorted([a for a in df["ÁREA"].unique() if str(a).upper() != "GASTO"])
-area = st.selectbox("Área:", areas)
+df_area = df[df["ÁREA"]==area]
+categoria = st.selectbox("Categoría:", sorted(df_area["CATEGORIA"].unique()))
+df_cat = df_area[df_area["CATEGORIA"]==categoria]
 
-df_area = df[df["ÁREA"] == area]
+subfams = ["TODOS"]+sorted(df_cat["SUB FAMILIA"].unique())
+subfam = st.selectbox("Subfamilia:",subfams)
+df_sf = df_cat if subfam=="TODOS" else df_cat[df_cat["SUB FAMILIA"]==subfam]
 
-categorias = sorted(df_area["CATEGORIA"].unique())
-categoria = st.selectbox("Categoría:", categorias)
+prods = ["TODOS"]+sorted(df_sf["PRODUCTO GENÉRICO"].unique())
+prod_sel = st.selectbox("Producto específico:",prods)
 
-df_cat = df_area[df_area["CATEGORIA"] == categoria]
+df_sel = df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_sel]
 
-subfams = sorted(df_cat["SUB FAMILIA"].unique())
-subfam_options = ["TODOS"] + subfams
-subfam = st.selectbox("Sub Familia:", subfam_options)
-
-if subfam != "TODOS":
-    df_sf = df_cat[df_cat["SUB FAMILIA"] == subfam]
-else:
-    df_sf = df_cat.copy()
-
-# Filtro por producto específico (con opción TODOS)
-productos_lista = sorted(df_sf["PRODUCTO GENÉRICO"].unique())
-prod_options = ["TODOS"] + productos_lista
-prod_filtro = st.selectbox("Filtrar por producto específico:", prod_options)
-
-if prod_filtro != "TODOS":
-    df_sel = df_sf[df_sf["PRODUCTO GENÉRICO"] == prod_filtro]
-else:
-    df_sel = df_sf.copy()
-
-if df_sel.empty:
-    st.warning("No hay productos con esos filtros.")
-    st.stop()
-
-st.markdown("---")
 
 # =========================================================
-#  TABLA EDITABLE CON CARRITO
+#   TABLA EDITABLE (CARRITO ACTIVO)
 # =========================================================
+tabla=[]
+for p in df_sel["PRODUCTO GENÉRICO"]:
+    key=(area,p.upper())
+    mem=st.session_state["carrito"].get(key,{})
+    row=df_sel[df_sel["PRODUCTO GENÉRICO"]==p]
 
-productos = df_sel["PRODUCTO GENÉRICO"].tolist()
-tabla_rows = []
+    tabla.append({
+        "PRODUCTO":p,
+        "UNIDAD":row["UNIDAD RECETA"].values[0],
+        "MEDIDA":row["CANTIDAD DE UNIDAD DE MEDIDA"].values[0],
+        "CERRADO":mem.get("CERRADO",0),
+        "ABIERTO(PESO)":mem.get("ABIERTO(PESO)",0),
+        "BOTELLAS_ABIERTAS":mem.get("BOTELLAS_ABIERTAS",0) if area.upper()=="BARRA" else ""
+    })
 
-for prod in productos:
-    key = (area, prod.strip().upper())
-    carrito_vals = st.session_state["carrito"].get(key, {})
+df_edit=pd.DataFrame(tabla)
 
-    fila_df = df_sel[df_sel["PRODUCTO GENÉRICO"] == prod]
+editable=["CERRADO","ABIERTO(PESO)"]
+if area.upper()=="BARRA": editable+=["BOTELLAS_ABIERTAS"]
 
-    unidad = fila_df["UNIDAD RECETA"].values[0]
-    medida = fila_df["CANTIDAD DE UNIDAD DE MEDIDA"].values[0]
+st.subheader("Ingresar cantidades:")
+df_edit = st.data_editor(df_edit,use_container_width=True,disabled=[c for c in df_edit if c not in editable])
 
-   # ==========================================================
-# Construimos tabla preservando valores previos del carrito
-# ==========================================================
-
-tabla_rows.append({
-    "PRODUCTO": prod,
-    "UNIDAD": unidad,
-    "MEDIDA": medida,
-    "CERRADO": st.session_state["carrito"].get((area, prod.upper()),{}).get("CERRADO",0.0),
-    "ABIERTO(PESO)": st.session_state["carrito"].get((area, prod.upper()),{}).get("ABIERTO(PESO)",0.0),
-    "BOTELLAS_ABIERTAS": st.session_state["carrito"].get((area, prod.upper()),{}).get("BOTELLAS_ABIERTAS",0.0) if area.upper()=="BARRA" else 0.0,
-})
-
-
-
-tabla_base = pd.DataFrame(tabla_rows)
-
-editable_cols = ["CERRADO", "ABIERTO(PESO)"]
-if area.upper() == "BARRA":
-    editable_cols.append("BOTELLAS_ABIERTAS")
-
-st.subheader("Listado de productos")
-
-tabla_editada = st.data_editor(
-    tabla_base,
-    use_container_width=True,
-    num_rows="fixed",
-    disabled=[c for c in tabla_base.columns if c not in editable_cols],
-    key="tabla_inventario",
-)
-
-# ==============================
-# ==============================
-#  Actualizar carrito sin perder datos al cambiar categoría
-# ==============================
-for _, row in tabla_editada.iterrows():
-    key = (area, str(row["PRODUCTO"]).strip().upper())
-
-    current = st.session_state["carrito"].get(key, {})
-
-    st.session_state["carrito"][key] = {
-        "CERRADO": float(row["CERRADO"]) if row["CERRADO"] not in ("", None) else current.get("CERRADO", 0.0),
-        "ABIERTO(PESO)": float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO)"] not in ("", None) else current.get("ABIERTO(PESO)", 0.0),
+# guardar en memoria interna
+for _,r in df_edit.iterrows():
+    key=(area,r["PRODUCTO"].upper())
+    st.session_state["carrito"][key]={
+        "CERRADO":float(r["CERRADO"]),
+        "ABIERTO(PESO)":float(r["ABIERTO(PESO)"]),
     }
-
-    if area.upper() == "BARRA":
-        st.session_state["carrito"][key]["BOTELLAS_ABIERTAS"] = (
-            float(row["BOTELLAS_ABIERTAS"]) if row["BOTELLAS_ABIERTAS"] not in ("", None)
-            else current.get("BOTELLAS_ABIERTAS", 0.0)
-        )
-
+    if area.upper()=="BARRA": 
+        st.session_state["carrito"][key]["BOTELLAS_ABIERTAS"]=float(r["BOTELLAS_ABIERTAS"])
 
 
 # =========================================================
-#  VISTA PREVIA
+#   VISTA PREVIA (solo productos con valores > 0)
 # =========================================================
+st.subheader("Vista Previa")
 
-st.subheader("Vista previa")
+merge=df_sel[["PRODUCTO GENÉRICO","PRECIO NETO","COSTO X UNIDAD"]]
+merge=merge.rename(columns={"PRODUCTO GENÉRICO":"PRODUCTO"})
 
-merge_cols = ["PRODUCTO GENÉRICO", "PRECIO NETO", "COSTO X UNIDAD"]
-df_merge = df_sel[merge_cols].rename(columns={"PRODUCTO GENÉRICO": "PRODUCTO"})
+prev= df_edit.merge(merge,on="PRODUCTO")
+prev["VALOR INVENTARIO"]=prev["PRECIO NETO"]*prev["CERRADO"]+prev["COSTO X UNIDAD"]*prev["ABIERTO(PESO)"]
+prev["VALOR INVENTARIO"]=prev["VALOR INVENTARIO"].round(2)
 
-previo = tabla_editada.merge(df_merge, on="PRODUCTO", how="left")
+filtro=(prev["CERRADO"]!=0)|(prev["ABIERTO(PESO)"]!=0)
+if area.upper()=="BARRA": filtro |= (prev["BOTELLAS_ABIERTAS"]!=0)
 
-previo["VALOR INVENTARIO (PREVIO)"] = (
-    previo["PRECIO NETO"] * previo["CERRADO"]
-    + previo["COSTO X UNIDAD"] * previo["ABIERTO(PESO)"]
-)
-previo["VALOR INVENTARIO (PREVIO)"] = previo["VALOR INVENTARIO (PREVIO)"].round(2)
+prev=prev[filtro]
 
-# Solo mostrar productos con algún valor != 0
-filtro = (
-    (previo["CERRADO"] != 0) |
-    (previo["ABIERTO(PESO)"] != 0) |
-    ((area.upper() == "BARRA") & (previo.get("BOTELLAS_ABIERTAS", 0) != 0))
-)
-previo_filtrado = previo[filtro]
+cols=["PRODUCTO","CERRADO","ABIERTO(PESO)"]
+if area.upper()=="BARRA": cols+=["BOTELLAS_ABIERTAS"]
+cols+=["VALOR INVENTARIO"]
 
-cols_prev = ["PRODUCTO", "CERRADO", "ABIERTO(PESO)"]
-if area.upper() == "BARRA":
-    cols_prev.append("BOTELLAS_ABIERTAS")
-cols_prev.append("VALOR INVENTARIO (PREVIO)")
+st.dataframe(prev[cols],use_container_width=True)
 
-st.dataframe(previo_filtrado[cols_prev], use_container_width=True)
-
-st.info(
-    "El VALOR INVENTARIO final lo sigue calculando Google Sheets. "
-    "Aquí solo ves una vista previa para revisar antes de guardar."
-)
 
 # =========================================================
-#  PREPARAR HOJA DESTINO
+#   GUARDAR A GOOGLE SHEETS
 # =========================================================
+ws = get_dest_sheet(area)
+m = get_header_map(ws)
 
-ws_dest = get_dest_sheet(area)
-header_map = get_header_map(ws_dest)
+cProd=m["PRODUCTO GENÉRICO"]
+cCer=m.get("CANTIDAD CERRADO")
+cAb=m.get("CANTIDAD ABIERTO (PESO)")
+cBot=m.get("CANTIDAD BOTELLAS ABIERTAS")
+cFecha=m.get("FECHA")
+cValor=m.get("VALOR INVENTARIO")
 
-prod_col_name = "PRODUCTO GENÉRICO"
-if prod_col_name not in header_map:
-    st.error(
-        "No se encontró la columna 'PRODUCTO GENÉRICO' en la hoja de inventario.\n\n"
-        f"Encabezados detectados en la fila {HEADER_ROW} de '{ws_dest.title}':\n"
-        + ", ".join(header_map.keys())
-    )
-    st.stop()
 
-col_prod = header_map[prod_col_name]
-col_cerrado = header_map.get("CANTIDAD CERRADO")
-col_abierto = header_map.get("CANTIDAD ABIERTO (PESO)")
-col_botellas = header_map.get("CANTIDAD BOTELLAS ABIERTAS")
-col_valor = header_map.get("VALOR INVENTARIO")
-col_fecha = header_map.get("FECHA")
+def guardar():
+    updates=[]
+    filas=0
 
-prod_row_map = get_product_row_map(ws_dest, col_prod)
+    rows=get_product_row_map(ws,cProd)
+
+    for _,r in df_edit.iterrows():
+        prod=r["PRODUCTO"].upper()
+        if prod not in rows: continue  
+        row=rows[prod]
+
+        if cCer:  updates.append({"range":f"{colnum_to_colletter(cCer)}{row}","values":[[float(r['CERRADO'])]]})
+        if cAb:   updates.append({"range":f"{colnum_to_colletter(cAb)}{row}","values":[[float(r['ABIERTO(PESO)'])]]})
+        if area.upper()=="BARRA" and cBot:
+            updates.append({"range":f"{colnum_to_colletter(cBot)}{row}","values":[[float(r['BOTELLAS_ABIERTAS'])]]})
+
+        if cFecha: updates.append({"range":f"{colnum_to_colletter(cFecha)}{row}","values":[[fecha_str]]})
+
+        filas+=1
+    
+    ws.batch_update(updates)
+    return filas
+
 
 # =========================================================
-#  FUNCIONES GUARDAR / RESET
+#   RESET TOTAL + confirmar + borrar comentario
 # =========================================================
-
-def guardar_inventario():
-    updates = []
-    filas_actualizadas = 0
-
-    for _, row in tabla_editada.iterrows():
-        prod = str(row["PRODUCTO"]).strip().upper()
-        if prod not in prod_row_map:
-            continue
-
-        r = prod_row_map[prod]
-
-        if col_cerrado:
-            letra = colnum_to_colletter(col_cerrado)
-            updates.append(
-                {"range": f"{letra}{r}", "values": [[float(row["CERRADO"])]]}
-            )
-
-        if col_abierto:
-            letra = colnum_to_colletter(col_abierto)
-            updates.append(
-                {"range": f"{letra}{r}", "values": [[float(row["ABIERTO(PESO)"])]]}
-            )
-
-        if col_botellas and area.upper() == "BARRA":
-            letra = colnum_to_colletter(col_botellas)
-            updates.append(
-                {"range": f"{letra}{r}", "values": [[float(row["BOTELLAS_ABIERTAS"])]]}
-            )
-
-        if col_fecha:
-            letra = colnum_to_colletter(col_fecha)
-            updates.append(
-                {"range": f"{letra}{r}", "values": [[fecha_str]]}
-            )
-
-        filas_actualizadas += 1
-
-    if updates:
-        ws_dest.batch_update(updates)
-
-    return filas_actualizadas
-
-
 def reset_inventario():
-    updates = []
+    rows=get_product_row_map(ws,cProd)
+    updates=[]
 
-    # Reset de todas las filas de productos del área
-    productos_col = ws_dest.col_values(col_prod)
-    total_rows = len(productos_col)
+    for r in rows.values():
+        if cCer:  updates.append({"range":f"{colnum_to_colletter(cCer)}{r}","values":[[0]]})
+        if cAb:   updates.append({"range":f"{colnum_to_colletter(cAb)}{r}","values":[[0]]})
+        if cBot:  updates.append({"range":f"{colnum_to_colletter(cBot)}{r}","values":[[0]]})
+        if cValor:updates.append({"range":f"{colnum_to_colletter(cValor)}{r}","values":[[0]]})
+        if cFecha:updates.append({"range":f"{colnum_to_colletter(cFecha)}{r}","values":[[""]]})
 
-    for r in range(FIRST_DATA_ROW, total_rows + 1):
-        if col_cerrado:
-            letra = colnum_to_colletter(col_cerrado)
-            updates.append({"range": f"{letra}{r}", "values": [[0]]})
-        if col_abierto:
-            letra = colnum_to_colletter(col_abierto)
-            updates.append({"range": f"{letra}{r}", "values": [[0]]})
-        if col_botellas:
-            letra = colnum_to_colletter(col_botellas)
-            updates.append({"range": f"{letra}{r}", "values": [[0]]})
-        if col_valor:
-            letra = colnum_to_colletter(col_valor)
-            updates.append({"range": f"{letra}{r}", "values": [[0]]})
-        if col_fecha:
-            letra = colnum_to_colletter(col_fecha)
-            updates.append({"range": f"{letra}{r}", "values": [[""]]})
+    updates.append({"range":"C3","values":[[""]]})
+    ws.batch_update(updates)
 
-    # Borrar comentario en C3
-    updates.append({"range": "C3", "values": [[""]]})
-
-    if updates:
-        ws_dest.batch_update(updates)
-
-   # Limpiar carrito + comentario correctamente
-st.session_state["carrito"] = {}
-st.session_state.pop("comentario_texto", None)
+    st.session_state["carrito"]={}
+    st.session_state.pop("comentario_texto",None)
 
 
 # =========================================================
-#  COMENTARIO EN C3
+#   COMENTARIO EN C3
 # =========================================================
+st.subheader("Comentario Inventario")
+coment=st.text_area("Comentario:",key="comentario_texto")
 
-st.subheader("Comentario general del inventario")
+if st.button("💬 Guardar comentario en C3"):
+    ws.update("C3",[[coment]])
+    st.success("Comentario guardado.")
 
-comentario = st.text_area(
-    "Comentario:",
-    key="comentario_texto",
-    placeholder="Escribe aquí un comentario general del inventario..."
-)
-
-if st.button("💬 Guardar comentario en hoja"):
-    try:
-        ws_dest.update("C3", [[comentario]])
-        st.success("Comentario guardado en C3.")
-    except Exception as e:
-        st.error(f"Error guardando comentario: {e}")
 
 # =========================================================
-#  BOTONES GUARDAR / RESET (CON DOBLE CONFIRMACIÓN)
+#   BOTONES FINALES
 # =========================================================
+c1,c2=st.columns(2)
 
-col_guardar, col_reset = st.columns(2)
+with c1:
+    if st.button("💾 Guardar Inventario"):
+        x=guardar()
+        st.success(f"✔ Guardado {x} productos correctamente.")
 
-with col_guardar:
-    if st.button("💾 Guardar inventario (sobrescribir)"):
-        n_filas = guardar_inventario()
-        st.success(f"✅ Se actualizaron {n_filas} filas en la hoja de inventario.")
 
-with col_reset:
-    if st.button("🧹 Resetear inventario del área"):
-        st.session_state["confirm_reset"] = True
+with c2:
+    if st.button("🧹 Resetear Inventario"):
+        st.session_state["confirm_reset"]=True
 
-if st.session_state.get("confirm_reset", False):
-    st.warning(
-        "⚠ ¿Seguro que quieres eliminar los datos de "
-        "CANTIDAD CERRADO, CANTIDAD ABIERTO (PESO), "
-        "CANTIDAD BOTELLAS ABIERTAS, VALOR INVENTARIO y FECHA "
-        "para TODOS los productos del área, y borrar el comentario?",
-        icon="⚠"
-    )
 
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("✅ Sí, borrar TODO"):
+if st.session_state["confirm_reset"]:
+    st.error("⚠ ¿Seguro quieres BORRAR TODO el inventario del área + comentario?",icon="⚠")
+    cc1,cc2=st.columns(2)
+
+    with cc1:
+        if st.button("CONFIRMAR RESET"):
             reset_inventario()
-            st.success("Inventario y comentario reseteados.")
-            st.session_state["confirm_reset"] = False
+            st.success("Inventario y comentario borrados.")
+            st.session_state["confirm_reset"]=False
 
-    with c2:
-        if st.button("❌ Cancelar operación"):
-            st.info("Operación cancelada. No se modificó nada.")
-            st.session_state["confirm_reset"] = False
-
-
-
-
-
-
+    with cc2:
+        if st.button("Cancelar"):
+            st.session_state["confirm_reset"]=False
+            st.info("Operación cancelada.")
