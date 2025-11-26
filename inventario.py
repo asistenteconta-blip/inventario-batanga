@@ -201,7 +201,9 @@ def reset_inventario():
         if cCer: updates.append({"range":f"{colletter(cCer)}{r}","values":[[0]]})
         if cAb: updates.append({"range":f"{colletter(cAb)}{r}","values":[[0]]})
         if cBot: updates.append({"range":f"{colletter(cBot)}{r}","values":[[0]]})
-        if cFecha: updates.append({"range":f"{colletter(cFecha)}{r}","values":[[""]]]})
+        if cFecha: 
+    updates.append({"range":f"{colletter(cFecha)}{r}","values":[[""]]})
+
 
     updates.append({"range":"C3","values":[[""]]})
     ws.batch_update(updates)
@@ -242,5 +244,6 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
