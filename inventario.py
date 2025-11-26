@@ -116,18 +116,18 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 
 if df_sel.empty: st.stop()
 
-# ================================ 
-# 🔥 TABLA CON MEMORIA (SIN DOBLE INGRESO)
+# ================================
+# 🔥 TABLA SIN BORRADO — MODO ESTABLE
 # ================================
 
 key = f"{area}|{categoria}|{subfam}|{prod_sel}"
 
-# Crear la tabla la primera vez
+# Si no existe memoria → crear tabla base
 if key not in st.session_state["memory"]:
     st.session_state["memory"][key] = pd.DataFrame({
-        "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].values,
-        "UNIDAD": df_sel["UNIDAD RECETA"].values,
-        "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
+        "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
+        "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
+        "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0] * len(df_sel),
         "ABIERTO(PESO)": [0.0] * len(df_sel),
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
@@ -135,16 +135,19 @@ if key not in st.session_state["memory"]:
 
 st.subheader("Ingresar inventario")
 
-# 🔥 Renderizamos usando la **tabla viva**, no una copia
+# Se edita pero NO se sobreescribe aún
 df_edit = st.data_editor(
     st.session_state["memory"][key],
-    key=f"E_{key}",
+    key=f"editor_{key}",
     use_container_width=True,
     disabled=["PRODUCTO","UNIDAD","MEDIDA"]
 )
 
-# 🔥 Guardar en memoria INMEDIATAMENTE → evita el borrado
-st.session_state["memory"][key] = df_edit
+# 🔥 Botón que ahora sí guarda la tabla sin perder escritura
+if st.button("💾 Guardar cambios en memoria de la tabla"):
+    st.session_state["memory"][key] = df_edit
+    st.success("Valores aplicados sin borrarse ✔")
+
 
 # =========================================================
 # VISTA PREVIA
@@ -254,6 +257,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
