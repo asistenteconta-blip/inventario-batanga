@@ -153,7 +153,7 @@ for i,row in df_edit.iterrows():
 
     # Manejo seguro incluso si el editor entrega string vacío
     cerrado = float(row["CERRADO"]) if row["CERRADO"] not in ["","None",None] else 0
-    abierto = float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO]"] not in ["","None",None] else 0
+    abierto = float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO)"] not in ["","None",None] else 0
     botellas = 0
 
     if area.upper()=="BARRA":
@@ -271,5 +271,6 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Operación cancelada")
+
 
 
