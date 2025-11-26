@@ -226,25 +226,26 @@ editable_cols = ["CERRADO", "ABIERTO(PESO)"]
 if area_key == "BARRA":
     editable_cols.append("BOTELLAS_ABIERTAS")
 
+# 📌 Editor
 df_edit = st.data_editor(
-    tabla_actual,
+    st.session_state["tablas"][tabla_key],
     use_container_width=True,
     disabled=[c for c in tabla_actual.columns if c not in editable_cols],
-    key=f"editor_{tabla_key}",
+    key=f"editor_{tabla_key}"
 )
 
-# guardar tabla actualizada
-st.session_state["tablas"][tabla_key] = df_edit
+# 🔥 Guardar inmediatamente al cambiar valores
+st.session_state["tablas"][tabla_key] = df_edit.copy()
 
-# guardar valores en memoria persistente
+# 🔥 Persistir valores por producto
 for _, r in df_edit.iterrows():
-    prod = str(r["PRODUCTO"])
-    prod_key = f"{area_key}|{categoria_key}|{subfam_key}|{prod.upper()}"
+    prod_key = f"{area_key}|{categoria_key}|{subfam_key}|{str(r['PRODUCTO']).upper()}"
     st.session_state["inv_vals"][prod_key] = {
         "CERRADO": safe_float(r["CERRADO"]),
         "ABIERTO(PESO)": safe_float(r["ABIERTO(PESO)"]),
-        "BOTELLAS_ABIERTAS": safe_float(r["BOTELLAS_ABIERTAS"]) if area_key == "BARRA" else 0.0,
+        "BOTELLAS_ABIERTAS": safe_float(r["BOTELLAS_ABIERTAS"]) if area_key=="BARRA" else 0.0
     }
+
 
 # =========================================================
 # VISTA PREVIA
@@ -441,3 +442,4 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
