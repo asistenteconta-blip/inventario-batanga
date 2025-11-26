@@ -83,10 +83,11 @@ def get_rows(ws,col_prod):
 # =========================================================
 st.title("📦 Sistema Inventario Batanga")
 
-st.warning("""
-⚠ Validar cantidades antes de guardar.
-⚠ Reset borra inventario + comentario, pero la fórmula se mantiene.
-""")
+st.warning(
+    "⚠ Validar cantidades antes de guardar.\n"
+    "🧹 Reset borra inventario + comentario (pero mantiene fórmula en Google Sheets).\n"
+    "📄 Valor inventario final se calcula desde Google Sheets."
+)
 
 
 fecha=st.date_input("Fecha:",value=date.today())
@@ -236,3 +237,4 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
