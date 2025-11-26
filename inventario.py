@@ -200,9 +200,6 @@ df_edit = st.data_editor(
 if not df_edit.equals(st.session_state[tabla_key]):
     st.session_state[tabla_key] = df_edit.copy()
 
-# Guardar inmediatamente lo que devuelve el editor
-st.session_state[tabla_key] = df_edit
-
 # =========================================================
 # VISTA PREVIA
 # =========================================================
@@ -412,4 +409,5 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
