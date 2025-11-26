@@ -92,7 +92,7 @@ def colnum_to_colletter(n):
 # =========================================================
 # UI
 # =========================================================
-st.title("📦 Sistema Inventario Batanga / Aguizotes")
+st.title("📦 Sistema Inventario Batanga")
 st.warning("⚠ Revisar vista previa antes de guardar. Reset borra TODO el inventario + comentario.")
 
 fecha = st.date_input("Fecha:",value=date.today())
@@ -271,6 +271,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Operación cancelada")
+
 
 
 
