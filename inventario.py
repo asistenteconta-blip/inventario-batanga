@@ -121,7 +121,6 @@ st.title("📦 Inventario Diario — Batanga")
 st.warning(
     "⚠ Validar cantidades ANTES de guardar.\n\n"
     "⚠ El botón RESET borra cantidades del área actual + el comentario del inventario,\n"
-    "⚠ El valor final de inventario lo calcula Google Sheets, igual lo puedes ver en la vista previa."
 )
 
 fecha = st.date_input("Fecha de inventario:", value=date.today())
@@ -407,6 +406,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
