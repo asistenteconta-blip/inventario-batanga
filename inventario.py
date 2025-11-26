@@ -234,11 +234,9 @@ tabla_rows.append({
     "PRODUCTO": prod,
     "UNIDAD": unidad,
     "MEDIDA": medida,
-
-    # estos valores ya NO vuelven a 0 nunca al filtrar o cambiar categoría
-    "CERRADO": st.session_state["carrito"].get((area, prod.upper()), {}).get("CERRADO", float("nan")),
-    "ABIERTO(PESO)": st.session_state["carrito"].get((area, prod.upper()), {}).get("ABIERTO(PESO)", float("nan")),
-    "BOTELLAS_ABIERTAS": st.session_state["carrito"].get((area, prod.upper()), {}).get("BOTELLAS_ABIERTAS", float("nan")) if area.upper()=="BARRA" else float("nan"),
+    "CERRADO": st.session_state["carrito"].get((area, prod.upper()),{}).get("CERRADO",0.0),
+    "ABIERTO(PESO)": st.session_state["carrito"].get((area, prod.upper()),{}).get("ABIERTO(PESO)",0.0),
+    "BOTELLAS_ABIERTAS": st.session_state["carrito"].get((area, prod.upper()),{}).get("BOTELLAS_ABIERTAS",0.0) if area.upper()=="BARRA" else 0.0,
 })
 
 
@@ -479,6 +477,7 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar operación"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
