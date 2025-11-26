@@ -162,44 +162,40 @@ if df_sel.empty:
 
 
 # =========================================================
-# TABLA EDITABLE CON MEMORIA (SIN DOBLE ESCRITURA)
+# 📌 TABLA EDITABLE CON MEMORIA REAL — SIN DOBLE INGRESO
 # =========================================================
 
-tabla_key = f"{area}|{categoria}|{subfam}"  # UNA SOLA CLAVE 💥
+tabla_key = f"inv|{area}|{categoria}|{subfam}"  # 🔥 solo memoria por combinación
 
-# Crear tabla si no existe aún
+# 🟢 SOLO se crea la primera vez
 if tabla_key not in st.session_state:
-    base = {
+    base = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
-        "CERRADO": [0.0] * len(df_sel),
-        "ABIERTO(PESO)": [0.0] * len(df_sel)
-    }
-
-    if area.upper() == "BARRA":
-        base["BOTELLAS_ABIERTAS"] = [0.0] * len(df_sel)
-    else:
-        base["BOTELLAS_ABIERTAS"] = [""] * len(df_sel)
-
-    st.session_state[tabla_key] = pd.DataFrame(base)  # Guarda la tabla inicial
+        "CERRADO": [0.0]*len(df_sel),
+        "ABIERTO(PESO)": [0.0]*len(df_sel),
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
+    })
+    st.session_state[tabla_key] = base.copy()   # << Guarda inicial SOLO una vez
 
 
-# 🔥 USAR DIRECTAMENTE session_state SIEMPRE
+# 🟢 siempre se usa la versión guardada, NUNCA se reconstruye
 df_edit = st.session_state[tabla_key]
 
-
-st.subheader("Ingresar inventario (SIN DOBLE ENTRADA)")
+st.subheader("Ingresar inventario 🔥 (ya no ocupa doble ingreso)")
 
 df_edit = st.data_editor(
     df_edit,
     key=f"editor_{tabla_key}",
     use_container_width=True,
-    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"]
+    disabled=["PRODUCTO","UNIDAD","MEDIDA"]
 )
 
-# 🔥🔥 Guardar al instante sin esperar recarga 🔥🔥
-st.session_state[tabla_key] = df_edit.copy()
+# 🔥 si el usuario editó algo → se guarda INMEDIATO antes del refresco
+if not df_edit.equals(st.session_state[tabla_key]):
+    st.session_state[tabla_key] = df_edit.copy()
+
 
 
 
@@ -412,6 +408,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
