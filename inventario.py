@@ -272,3 +272,4 @@ if st.session_state["confirm_reset"]:
             st.session_state["confirm_reset"]=False
             st.info("Operación cancelada")
 
+
