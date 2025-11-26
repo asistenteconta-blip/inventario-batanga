@@ -120,7 +120,9 @@ st.title("📦 Inventario Diario — Batanga")
 
 st.warning(
     "⚠ Validar cantidades ANTES de guardar.\n\n"
-    "⚠ El botón RESET borra cantidades del área actual + el comentario del inventario, este cambio es irreversible.\n"
+    "⚠ El botón RESET borra cantidades del área actual + comentario en C3,\n"
+    "   pero NO borra las fórmulas de Google Sheets.\n\n"
+    "⚠ El valor final de inventario lo calcula Google Sheets."
 )
 
 fecha = st.date_input("Fecha de inventario:", value=date.today())
@@ -160,47 +162,42 @@ if df_sel.empty:
 
 
 # =========================================================
-# 🔥 TABLA EDITABLE CON MEMORIA SIN DOBLE ESCRITURA 100% REAL
+# TABLA EDITABLE CON MEMORIA (SIN DOBLE ENTRADA)
 # =========================================================
 
-tabla_key  = f"INV|{area}|{categoria}|{subfam}|{prod_sel}"
+tabla_key = f"tabla|{area}|{categoria}|{subfam}|{prod_sel}"
 
-# 1) Crear tabla inicial solo si no existe
+# Crear tabla inicial sólo una vez por combinación
 if tabla_key not in st.session_state:
-    st.session_state[tabla_key] = pd.DataFrame({
+    base = {
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
-        "CERRADO": [0.0]*len(df_sel),
-        "ABIERTO(PESO)": [0.0]*len(df_sel),
-        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""]*len(df_sel)
-    })
+        "CERRADO": [0.0] * len(df_sel),
+        "ABIERTO(PESO)": [0.0] * len(df_sel),
+    }
 
-# 2) Crear buffer temporal para edición
-if f"BUFFER_{tabla_key}" not in st.session_state:
-    st.session_state[f"BUFFER_{tabla_key}"] = st.session_state[tabla_key].copy()
+    if area.upper() == "BARRA":
+        base["BOTELLAS_ABIERTAS"] = [0.0] * len(df_sel)
+    else:
+        base["BOTELLAS_ABIERTAS"] = [""] * len(df_sel)
 
+    st.session_state[tabla_key] = pd.DataFrame(base)
 
-# ======== SYNCH — CLAVE PARA QUE NO SE BORRE LA 1ERA ESCRITURA ========
-def sync_memoria():
-    st.session_state[tabla_key] = st.session_state[f"BUFFER_{tabla_key}"].copy()
+# Usar SIEMPRE la última versión guardada en session_state
+df_edit = st.session_state[tabla_key]
 
-
-# ======== EDITOR FINAL =========
 st.subheader("Ingresar inventario")
 
-st.data_editor(
-    st.session_state[f"BUFFER_{tabla_key}"],
-    key=f"EDIT_{tabla_key}",
+df_edit = st.data_editor(
+    df_edit,
+    key=f"editor_{tabla_key}",
     use_container_width=True,
-    disabled=["PRODUCTO","UNIDAD","MEDIDA"],
-    on_change=sync_memoria    # ← 🔥 hace que la primera edición se guarde
+    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
 )
 
-# Garantiza sincronización en cada cambio de filtros sin borrar datos
-sync_memoria()  
-df_edit = st.session_state[tabla_key].copy()  # ← ahora es estable
-
+# Guardar inmediatamente lo que devuelve el editor
+st.session_state[tabla_key] = df_edit
 
 # =========================================================
 # VISTA PREVIA
@@ -233,7 +230,7 @@ cols.append("VALOR INVENTARIO (PREVIO)")
 if not prev_filtrado.empty:
     st.dataframe(prev_filtrado[cols], use_container_width=True)
 else:
-    st.info("No hay productos con valores distintos a 0 para mostrar en la vista previa.")
+    st.info("No hay productos con valores distintos de 0 para mostrar en la vista previa.")
 
 
 # =========================================================
@@ -371,12 +368,12 @@ comentario = st.text_area(
     key="comentario_texto"
 )
 
-if st.button("💬 Guardar comentario"):
+if st.button("💬 Guardar comentario en C3"):
     try:
         ws.update("C3", [[comentario]])
-        st.success("✅ Comentario guardado.")
+        st.success("✅ Comentario guardado en C3.")
     except Exception as e:
-        st.error(f"Error al guardar el comentario: {e}")
+        st.error(f"Error al guardar el comentario en C3: {e}")
 
 
 # =========================================================
@@ -396,8 +393,8 @@ with col2:
 
 if st.session_state["confirm_reset"]:
     st.error(
-        "⚠ ¿Seguro que quieres resetear TODAS las cantidades de inventario "
-        f"del área **{area}** y borrar el comentario?\n\n"
+        "⚠ ¿Seguro que quieres RESETear TODAS las cantidades de inventario "
+        f"del área **{area}** y borrar el comentario en C3?\n\n"
         "Esta acción no se puede deshacer.",
         icon="⚠",
     )
@@ -411,22 +408,3 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
