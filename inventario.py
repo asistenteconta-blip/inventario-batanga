@@ -75,9 +75,14 @@ def get_headers(ws):
     row=ws.row_values(HEADER_ROW)
     return {r.strip().upper():i for i,r in enumerate(row,start=1) if r.strip()}
 
-def get_rows(ws,col):
-    vals=ws.col_values(col)
-    return {str(vals[i-1]).upper():i for i in range(DATA_START,len(vals)+1) if vals[i-1]!="")}
+def get_rows(ws, col):
+    vals = ws.col_values(col)
+    return {
+        str(vals[i-1]).upper(): i
+        for i in range(DATA_START, len(vals)+1)
+        if str(vals[i-1]).strip() != ""
+    }
+
 
 # =========================================================
 # UI
@@ -213,3 +218,4 @@ with col1:
 with col2:
     if st.button("🧹 RESET"):
         reset();st.success("Inventario borrado")
+
