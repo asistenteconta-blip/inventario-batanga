@@ -252,8 +252,8 @@ tabla_editada = st.data_editor(
 )
 
 # ==============================
-#  Actualizar carrito de forma global por producto
-#  (SE MANTIENE AUNQUE CAMBIES CATEGORÍA O SUBFAMILIA)
+# ==============================
+#  Actualizar carrito sin perder datos al cambiar categoría
 # ==============================
 for _, row in tabla_editada.iterrows():
     key = (area, str(row["PRODUCTO"]).strip().upper())
@@ -261,15 +261,16 @@ for _, row in tabla_editada.iterrows():
     current = st.session_state["carrito"].get(key, {})
 
     st.session_state["carrito"][key] = {
-        "CERRADO": float(row["CERRADO"]) if row["CERRADO"] else current.get("CERRADO", 0.0),
-        "ABIERTO(PESO)": float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO]") else current.get("ABIERTO(PESO)", 0.0),
+        "CERRADO": float(row["CERRADO"]) if row["CERRADO"] not in ("", None) else current.get("CERRADO", 0.0),
+        "ABIERTO(PESO)": float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO)"] not in ("", None) else current.get("ABIERTO(PESO)", 0.0),
     }
 
     if area.upper() == "BARRA":
         st.session_state["carrito"][key]["BOTELLAS_ABIERTAS"] = (
-            float(row["BOTELLAS_ABIERTAS"]) if row["BOTELLAS_ABIERTAS"] 
+            float(row["BOTELLAS_ABIERTAS"]) if row["BOTELLAS_ABIERTAS"] not in ("", None)
             else current.get("BOTELLAS_ABIERTAS", 0.0)
         )
+
 
 
 # =========================================================
@@ -470,4 +471,5 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar operación"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
