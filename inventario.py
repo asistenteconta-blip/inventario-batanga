@@ -117,11 +117,12 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 if df_sel.empty: st.stop()
 
 # =========================================================
-# 🔥 TABLA CON MEMORIA SIN DOBLE DIGITACIÓN 100% REAL
+# 🔥 TABLA CON MEMORIA – SIN DOBLE DIGITACIÓN
 # =========================================================
 
 key_base = f"{area}|{categoria}|{subfam}"
 
+# Crear memoria solo si NO existe
 if key_base not in st.session_state["memory"]:
     st.session_state["memory"][key_base] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
@@ -129,17 +130,22 @@ if key_base not in st.session_state["memory"]:
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0] * len(df_sel),
         "ABIERTO(PESO)": [0.0] * len(df_sel),
-        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel),
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
     })
 
-# ================= FIX ANTI-DOBLE-ESCRITURA ==================
-# Copiamos antes de mostrar — esto es lo que el usuario edita
+# Forzar que siempre sea DataFrame (evita TU ERROR) 🔥
+if not isinstance(st.session_state["memory"][key_base], pd.DataFrame):
+    st.session_state["memory"][key_base] = pd.DataFrame(st.session_state["memory"][key_base])
+
+# Copiamos para editar (esto evita sobreescritura por refresco)
 df_edit = st.session_state["memory"][key_base].copy()
 
 
+# ============= UPDATE REAL-TIME SIN DOBLE ESCRITURA 🔥 =============
 def sync_editor():
-    """Guarda inmediatamente cada cambio antes del rerender."""
-    st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
+    # Garantizar que lo que viene del editor SIEMPRE sea DataFrame
+    if isinstance(st.session_state["INV_TABLE"], pd.DataFrame):
+        st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
 
 
 st.subheader("Ingresar inventario")
@@ -149,16 +155,16 @@ df_edit = st.data_editor(
     key="INV_TABLE",
     use_container_width=True,
     disabled=["PRODUCTO","UNIDAD","MEDIDA"],
-    on_change=sync_editor,     # ←🔥 GUARDADO INMEDIATO
+    on_change=sync_editor
 )
 
-# Sincroniza SIEMPRE — cubre casos donde no hay cambio explícito
-st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
 
-# =========================================================
-# df_edit ahora SIEMPRE refleja lo último escrito 💚
-# =========================================================
+# Refrescar visual siempre con la versión final
+if isinstance(st.session_state["INV_TABLE"], pd.DataFrame):
+    st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
+
 df_edit = st.session_state["memory"][key_base]
+
 
 
 
@@ -271,6 +277,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
