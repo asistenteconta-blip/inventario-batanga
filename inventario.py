@@ -251,15 +251,26 @@ tabla_editada = st.data_editor(
     key="tabla_inventario",
 )
 
-# === Actualizar carrito con lo que el usuario tenga en la tabla ===
+# ==============================
+#  Actualizar carrito de forma global por producto
+#  (SE MANTIENE AUNQUE CAMBIES CATEGORÍA O SUBFAMILIA)
+# ==============================
 for _, row in tabla_editada.iterrows():
     key = (area, str(row["PRODUCTO"]).strip().upper())
+
+    current = st.session_state["carrito"].get(key, {})
+
     st.session_state["carrito"][key] = {
-        "CERRADO": float(row["CERRADO"]),
-        "ABIERTO(PESO)": float(row["ABIERTO(PESO)"]),
+        "CERRADO": float(row["CERRADO"]) if row["CERRADO"] else current.get("CERRADO", 0.0),
+        "ABIERTO(PESO)": float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO]") else current.get("ABIERTO(PESO)", 0.0),
     }
+
     if area.upper() == "BARRA":
-        st.session_state["carrito"][key]["BOTELLAS_ABIERTAS"] = float(row["BOTELLAS_ABIERTAS"])
+        st.session_state["carrito"][key]["BOTELLAS_ABIERTAS"] = (
+            float(row["BOTELLAS_ABIERTAS"]) if row["BOTELLAS_ABIERTAS"] 
+            else current.get("BOTELLAS_ABIERTAS", 0.0)
+        )
+
 
 # =========================================================
 #  VISTA PREVIA
@@ -459,3 +470,4 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar operación"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
