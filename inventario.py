@@ -107,6 +107,17 @@ def colnum_to_colletter(n):
     return s
 
 # =========================================================
+#  FUNCIÓN AUXILIAR PARA NÚMEROS
+# =========================================================
+def safe_float(x):
+    try:
+        if x in ["", None, "None"]:
+            return 0.0
+        return float(x)
+    except Exception:
+        return 0.0
+
+# =========================================================
 # UI
 # =========================================================
 st.title("📦 Sistema Inventario Batanga")
@@ -160,7 +171,8 @@ if tabla_key not in st.session_state:
 
     st.session_state[tabla_key] = pd.DataFrame(filas)
 
-df_edit = st.session_state[tabla_key].copy()
+# Usamos SIEMPRE el DF que está en session_state como fuente del editor
+df_source = st.session_state[tabla_key]
 
 editable = ["CERRADO","ABIERTO(PESO)"]
 if area.upper() == "BARRA":
@@ -169,9 +181,9 @@ if area.upper() == "BARRA":
 st.subheader("Ingresar cantidades")
 
 df_edit = st.data_editor(
-    df_edit,
+    df_source,
     use_container_width=True,
-    disabled=[c for c in df_edit.columns if c not in editable],
+    disabled=[c for c in df_source.columns if c not in editable],
     key=f"editor_{tabla_key}",
 )
 
@@ -179,14 +191,6 @@ df_edit = st.data_editor(
 st.session_state[tabla_key] = df_edit
 
 # Guardar cambios en memoria (carrito) sin perderlos
-def safe_float(x):
-    try:
-        if x in ["", None, "None"]:
-            return 0.0
-        return float(x)
-    except Exception:
-        return 0.0
-
 for _, row in df_edit.iterrows():
     key = (area, row["PRODUCTO"].upper())
 
@@ -348,3 +352,4 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"] = False
             st.info("Operación cancelada")
+
