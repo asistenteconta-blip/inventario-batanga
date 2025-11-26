@@ -272,38 +272,42 @@ def guardar_inventario():
 
         row_idx = rows_map[prod]
 
+        # CERRADO
         if col_cerrado:
+            val_cerrado = r["CERRADO"] if r["CERRADO"] not in ["", None] else 0
             updates.append({
                 "range": f"{colletter(col_cerrado)}{row_idx}",
-                "values": [[float(r["CERRADO"]) if r["CERRADO"] != "" else 0.0]],
+                "values": [[float(val_cerrado)]],
             })
 
+        # ABIERTO PESO (aquí estaba el error)
         if col_abierto:
+            val_abierto = r["ABIERTO(PESO)"] if r["ABIERTO(PESO)"] not in ["", None] else 0
             updates.append({
                 "range": f"{colletter(col_abierto)}{row_idx}",
-                "values": [[float(r["ABIERTO(PESO)"]) if r["ABIERTO(PESO]"] != "" else 0.0]],
+                "values": [[float(val_abierto)]],
             })
 
-        if area.upper() == "BARRA" and col_botellas:
-            val_bot = r.get("BOTELLAS_ABIERTAS", 0)
-            try:
-                val_bot = float(val_bot) if val_bot not in ["", None] else 0.0
-            except Exception:
-                val_bot = 0.0
-
+        # BOTELLAS ABAERTAS solo barra
+        if area.upper()=="BARRA" and col_botellas:
+            vb = r.get("BOTELLAS_ABIERTAS",0)
+            try: vb = float(vb) if vb not in ["",None] else 0
+            except: vb = 0
             updates.append({
                 "range": f"{colletter(col_botellas)}{row_idx}",
-                "values": [[val_bot]],
+                "values":[[vb]],
             })
 
+        # FECHA
         if col_fecha:
             updates.append({
                 "range": f"{colletter(col_fecha)}{row_idx}",
-                "values": [[fecha_str]],
+                "values": [[fecha_str]]
             })
 
     if updates:
         ws.batch_update(updates)
+
 
 
 # =========================================================
@@ -404,3 +408,4 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
