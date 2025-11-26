@@ -227,13 +227,14 @@ for prod in productos:
     medida = fila_df["CANTIDAD DE UNIDAD DE MEDIDA"].values[0]
 
     tabla_rows.append({
-        "PRODUCTO": prod,
-        "UNIDAD": unidad,
-        "MEDIDA": medida,
-        "CERRADO": carrito_vals.get("CERRADO", 0.0),
-        "ABIERTO(PESO)": carrito_vals.get("ABIERTO(PESO)", 0.0),
-        "BOTELLAS_ABIERTAS": carrito_vals.get("BOTELLAS_ABIERTAS", 0.0) if area.upper() == "BARRA" else 0.0
-    })
+    "PRODUCTO": prod,
+    "UNIDAD": unidad,
+    "MEDIDA": medida,
+    "CERRADO": st.session_state["carrito"].get((area, prod.upper()),{}).get("CERRADO",0.0),
+    "ABIERTO(PESO)": st.session_state["carrito"].get((area, prod.upper()),{}).get("ABIERTO(PESO)",0.0),
+    "BOTELLAS_ABIERTAS": st.session_state["carrito"].get((area, prod.upper()),{}).get("BOTELLAS_ABIERTAS",0.0) if area.upper()=="BARRA" else 0.0,
+})
+
 
 tabla_base = pd.DataFrame(tabla_rows)
 
@@ -471,5 +472,6 @@ if st.session_state.get("confirm_reset", False):
         if st.button("❌ Cancelar operación"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
