@@ -114,7 +114,7 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 # TABLA EDITABLE (sin memoria, sin carrito)
 # =========================================================
 
-st.subheader("Ingresar inventario (Directo y estable)")
+st.subheader("Ingresar inventario")
 
 tabla = pd.DataFrame({
     "PRODUCTO":df_sel["PRODUCTO GENÉRICO"].values,
@@ -218,4 +218,5 @@ with col1:
 with col2:
     if st.button("🧹 RESET"):
         reset();st.success("Inventario borrado")
+
 
