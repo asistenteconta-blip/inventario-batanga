@@ -147,16 +147,29 @@ if area.upper()=="BARRA": editable+=["BOTELLAS_ABIERTAS"]
 st.subheader("Ingresar cantidades")
 df_edit=st.data_editor(df_edit,use_container_width=True,disabled=[c for c in df_edit if c not in editable])
 
+# Guardar cambios en memoria sin perderlos
+for i,row in df_edit.iterrows():
+    key=(area,row["PRODUCTO"].upper())
+
+    # Manejo seguro incluso si el editor entrega string vacío
+    cerrado = float(row["CERRADO"]) if row["CERRADO"] not in ["","None",None] else 0
+    abierto = float(row["ABIERTO(PESO)"]) if row["ABIERTO(PESO]"] not in ["","None",None] else 0
+    botellas = 0
+
+    if area.upper()=="BARRA":
+        try:
+            botellas=float(row["BOTELLAS_ABIERTAS"])
+        except:
+            botellas=0
+
+    st.session_state["carrito"][key]={
+        "CERRADO":cerrado,
+        "ABIERTO(PESO)":abierto,
+        "BOTELLAS_ABIERTAS":botellas if area.upper()=="BARRA" else 0
+    }
+
 st.session_state[f"tabla_{area}"]=df_edit
 
-for _,r in df_edit.iterrows():
-    key=(area,r["PRODUCTO"].upper())
-    st.session_state["carrito"][key]={
-        "CERRADO":float(r["CERRADO"]),
-        "ABIERTO(PESO)":float(r["ABIERTO(PESO)"]),
-    }
-    if area.upper()=="BARRA":
-        st.session_state["carrito"][key]["BOTELLAS_ABIERTAS"]=float(r["BOTELLAS_ABIERTAS"])
 
 # =========================================================
 # VISTA PREVIA
@@ -258,3 +271,4 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Operación cancelada")
+
