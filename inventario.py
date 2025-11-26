@@ -173,7 +173,7 @@ if tabla_key not in st.session_state:
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0]*len(df_sel),
         "ABIERTO(PESO)": [0.0]*len(df_sel),
-        "BOTELLAS ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
     })
     st.session_state[tabla_key] = base.copy()   # << Guarda inicial SOLO una vez
 
@@ -406,6 +406,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
