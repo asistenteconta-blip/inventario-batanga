@@ -147,12 +147,12 @@ prod_sel = st.selectbox("Producto:", prods)
 df_sel = df_sf if prod_sel == "TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"] == prod_sel]
 
 # =========================================================
-# 🔥 TABLA EDITABLE SIN PÉRDIDA DE DATOS
+# 🔥 TABLA EDITABLE con persistencia REAL
 # =========================================================
 
-# Clave única de tabla por combinación de filtros
 tabla_key = f"tabla_{area}_{categoria}_{subfam}_{prod_sel}"
 
+# Solo la creamos si no existe
 if tabla_key not in st.session_state:
     filas = []
     for p in df_sel["PRODUCTO GENÉRICO"]:
@@ -166,44 +166,35 @@ if tabla_key not in st.session_state:
             "MEDIDA": row["CANTIDAD DE UNIDAD DE MEDIDA"].values[0],
             "CERRADO": mem.get("CERRADO", 0),
             "ABIERTO(PESO)": mem.get("ABIERTO(PESO)", 0),
-            "BOTELLAS_ABIERTAS": mem.get("BOTELLAS_ABIERTAS", 0) if area.upper() == "BARRA" else 0,
+            "BOTELLAS_ABIERTAS": mem.get("BOTELLAS_ABIERTAS", 0) if area.upper()=="BARRA" else 0
         })
 
     st.session_state[tabla_key] = pd.DataFrame(filas)
 
-# Usamos SIEMPRE el DF que está en session_state como fuente del editor
-df_source = st.session_state[tabla_key]
+df = st.session_state[tabla_key]   # <<< Usamos el DF como estado fuente
 
 editable = ["CERRADO","ABIERTO(PESO)"]
-if area.upper() == "BARRA":
-    editable.append("BOTELLAS_ABIERTAS")
+if area.upper()=="BARRA": editable.append("BOTELLAS_ABIERTAS")
 
 st.subheader("Ingresar cantidades")
 
 df_edit = st.data_editor(
-    df_source,
+    df,
     use_container_width=True,
-    disabled=[c for c in df_source.columns if c not in editable],
-    key=f"editor_{tabla_key}",
+    disabled=[c for c in df.columns if c not in editable],
+    key=f"editor_{tabla_key}"
 )
 
-# Guardar tabla actualizada
+# Guardamos automáticamente el dataframe ACTUALIZADO
 st.session_state[tabla_key] = df_edit
 
-# Guardar cambios en memoria (carrito) sin perderlos
+# Actualizamos el carrito sin reconstruir la tabla
 for _, row in df_edit.iterrows():
     key = (area, row["PRODUCTO"].upper())
-
-    cerrado = safe_float(row["CERRADO"])
-    abierto = safe_float(row["ABIERTO(PESO)"])
-    botellas = 0.0
-    if area.upper() == "BARRA":
-        botellas = safe_float(row.get("BOTELLAS_ABIERTAS", 0))
-
     st.session_state["carrito"][key] = {
-        "CERRADO": cerrado,
-        "ABIERTO(PESO)": abierto,
-        "BOTELLAS_ABIERTAS": botellas if area.upper() == "BARRA" else 0.0,
+        "CERRADO": safe_float(row["CERRADO"]),
+        "ABIERTO(PESO)": safe_float(row["ABIERTO(PESO)"]),
+        "BOTELLAS_ABIERTAS": safe_float(row.get("BOTELLAS_ABIERTAS", 0)) if area.upper()=="BARRA" else 0
     }
 
 # =========================================================
@@ -352,4 +343,5 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"] = False
             st.info("Operación cancelada")
+
 
