@@ -120,9 +120,8 @@ st.title("📦 Inventario Diario — Batanga")
 
 st.warning(
     "⚠ Validar cantidades ANTES de guardar.\n\n"
-    "⚠ El botón RESET borra cantidades del área actual + comentario en C3,\n"
-    "   pero NO borra las fórmulas de Google Sheets.\n\n"
-    "⚠ El valor final de inventario lo calcula Google Sheets."
+    "⚠ El botón RESET borra cantidades del área actual + comentario del inventario,\n"
+    "⚠ El valor final de inventario lo calcula Google Sheets, pero puedes verlo en la vista previa."
 )
 
 fecha = st.date_input("Fecha de inventario:", value=date.today())
@@ -187,7 +186,7 @@ if tabla_key not in st.session_state:
 # Usar SIEMPRE la última versión guardada en session_state
 df_edit = st.session_state[tabla_key]
 
-st.subheader("Ingresar inventario")
+st.subheader("Ingresar inventario (debes de ingresar los datos dos veces)")
 
 df_edit = st.data_editor(
     df_edit,
@@ -368,12 +367,12 @@ comentario = st.text_area(
     key="comentario_texto"
 )
 
-if st.button("💬 Guardar comentario en C3"):
+if st.button("💬 Guardar comentario"):
     try:
         ws.update("C3", [[comentario]])
-        st.success("✅ Comentario guardado en C3.")
+        st.success("✅ Comentario guardado.")
     except Exception as e:
-        st.error(f"Error al guardar el comentario en C3: {e}")
+        st.error(f"Error al guardar el comentario: {e}")
 
 
 # =========================================================
@@ -393,8 +392,8 @@ with col2:
 
 if st.session_state["confirm_reset"]:
     st.error(
-        "⚠ ¿Seguro que quieres RESETear TODAS las cantidades de inventario "
-        f"del área **{area}** y borrar el comentario en C3?\n\n"
+        "⚠ ¿Seguro que quieres Resetear TODAS las cantidades de inventario "
+        f"del área **{area}** y borrar el comentario?\n\n"
         "Esta acción no se puede deshacer.",
         icon="⚠",
     )
@@ -408,3 +407,4 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
