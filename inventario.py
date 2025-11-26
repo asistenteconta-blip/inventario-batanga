@@ -227,8 +227,9 @@ def reset_inventario():
     updates.append({"range":"C3","values":[[""]]})  # Reset comentario
 
     ws.batch_update(updates)
-    st.session_state["memory"].pop(key,None)
-    st.session_state["comentario_texto"]=""
+
+    # 🟢 EL FIX PARA TU ERROR
+    st.session_state.pop("comentario_texto", None)
 
 # =========================================================
 # COMENTARIO
@@ -268,4 +269,5 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
