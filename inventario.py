@@ -160,55 +160,46 @@ if df_sel.empty:
 
 
 # =========================================================
-# TABLA EDITABLE CON MEMORIA PERSISTENTE REAL
+# 🔥 TABLA EDITABLE CON MEMORIA SIN DOBLE ESCRITURA 100% REAL
 # =========================================================
 
-tabla_key  = f"{area}|{categoria}|{subfam}|{prod_sel}"
-buffer_key = f"buffer|{tabla_key}"
+tabla_key  = f"INV|{area}|{categoria}|{subfam}|{prod_sel}"
 
-# 1) Crear memoria inicial si nunca se ha usado esta combinación
+# 1) Crear tabla inicial solo si no existe
 if tabla_key not in st.session_state:
     st.session_state[tabla_key] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
-        "CERRADO": [0.0] * len(df_sel),
-        "ABIERTO(PESO)": [0.0] * len(df_sel),
-        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else "" ] * len(df_sel)
+        "CERRADO": [0.0]*len(df_sel),
+        "ABIERTO(PESO)": [0.0]*len(df_sel),
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""]*len(df_sel)
     })
 
-# 2) Siempre cargar el contenido guardado (memoria real)
-df_actual = st.session_state[tabla_key].copy()
-
-# 3) Crear/update buffer para el editor
-st.session_state[buffer_key] = df_actual.copy()
+# 2) Crear buffer temporal para edición
+if f"BUFFER_{tabla_key}" not in st.session_state:
+    st.session_state[f"BUFFER_{tabla_key}"] = st.session_state[tabla_key].copy()
 
 
-# =========================================================
-# SINCRONIZACIÓN — CLAVE PARA QUE NO SE BORRE NADA
-# =========================================================
-def sync_table():
-    """Guarda el buffer actual en la memoria definitiva."""
-    st.session_state[tabla_key] = st.session_state[buffer_key].copy()
+# ======== SYNCH — CLAVE PARA QUE NO SE BORRE LA 1ERA ESCRITURA ========
+def sync_memoria():
+    st.session_state[tabla_key] = st.session_state[f"BUFFER_{tabla_key}"].copy()
 
 
-# =========================================================
-# TABLA FINAL SIN DOBLE ENTRADA Y CON MEMORIA POR CATEGORÍA
-# =========================================================
+# ======== EDITOR FINAL =========
 st.subheader("Ingresar inventario")
 
-df_edit = st.data_editor(
-    st.session_state[buffer_key],
-    key=f"editor_{tabla_key}",
+st.data_editor(
+    st.session_state[f"BUFFER_{tabla_key}"],
+    key=f"EDIT_{tabla_key}",
     use_container_width=True,
-    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
-    on_change=sync_table,        # 🔥 ya no se borra al escribir
+    disabled=["PRODUCTO","UNIDAD","MEDIDA"],
+    on_change=sync_memoria    # ← 🔥 hace que la primera edición se guarde
 )
 
-sync_table()  # guarda automáticamente al cambiar filtros
-
-df_final = st.session_state[tabla_key]  # <- datos reales y persistentes
-
+# Garantiza sincronización en cada cambio de filtros sin borrar datos
+sync_memoria()  
+df_edit = st.session_state[tabla_key].copy()  # ← ahora es estable
 
 
 # =========================================================
@@ -420,6 +411,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
