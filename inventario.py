@@ -87,8 +87,13 @@ def get_headers(ws):
     return {h.strip().upper():i for i,h in enumerate(ws.row_values(HEADER_ROW),start=1) if h.strip()}
 
 def get_rows(ws, colprod):
-    vals=ws.col_values(colprod)
-    return {vals[i-1].upper():i for i in range(DATA_START,len(vals)+1) if vals[i-1]!=""]
+    vals = ws.col_values(colprod)
+    return {
+        vals[i-1].upper(): i
+        for i in range(DATA_START, len(vals) + 1)
+        if vals[i-1] != ""
+    }
+
 
 
 # =========================================================
@@ -263,3 +268,4 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
