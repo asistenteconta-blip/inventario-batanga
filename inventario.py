@@ -117,12 +117,12 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 if df_sel.empty: st.stop()
 
 # =========================================================
-# 🔥 TABLA CON MEMORIA – SIN DOBLE DIGITACIÓN
+# 🔥 TABLA CON MEMORIA - INDESTRUCTIBLE Y SIN DOBLE ESCRITURA
 # =========================================================
 
 key_base = f"{area}|{categoria}|{subfam}"
 
-# Crear memoria solo si NO existe
+# 1) Crear memoria inicial si no existe
 if key_base not in st.session_state["memory"]:
     st.session_state["memory"][key_base] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
@@ -133,19 +133,27 @@ if key_base not in st.session_state["memory"]:
         "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
     })
 
-# Forzar que siempre sea DataFrame (evita TU ERROR) 🔥
-if not isinstance(st.session_state["memory"][key_base], pd.DataFrame):
-    st.session_state["memory"][key_base] = pd.DataFrame(st.session_state["memory"][key_base])
 
-# Copiamos para editar (esto evita sobreescritura por refresco)
+# 2) 🔥 SI POR ALGUNA RAZÓN LA MEMORIA SE VOLVIO DICT → RECONSTRUIR
+mem = st.session_state["memory"][key_base]
+
+if isinstance(mem, dict):                        # ← Aquí ocurrió tu error
+    st.session_state["memory"][key_base] = pd.DataFrame.from_dict(mem)
+elif not isinstance(mem, pd.DataFrame):          # Caso extremo seguro
+    st.session_state["memory"][key_base] = pd.DataFrame(mem)
+
 df_edit = st.session_state["memory"][key_base].copy()
 
 
-# ============= UPDATE REAL-TIME SIN DOBLE ESCRITURA 🔥 =============
+# 3) SINCRONIZACIÓN REAL-TIME → NO MÁS DOBLE DIGITACIÓN 🔥
 def sync_editor():
-    # Garantizar que lo que viene del editor SIEMPRE sea DataFrame
-    if isinstance(st.session_state["INV_TABLE"], pd.DataFrame):
-        st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
+    table = st.session_state["INV_TABLE"]
+
+    # Si la tabla se transforma en dict → forzar DataFrame
+    if isinstance(table, dict):
+        table = pd.DataFrame.from_dict(table)
+
+    st.session_state["memory"][key_base] = table.copy()
 
 
 st.subheader("Ingresar inventario")
@@ -158,12 +166,9 @@ df_edit = st.data_editor(
     on_change=sync_editor
 )
 
-
-# Refrescar visual siempre con la versión final
-if isinstance(st.session_state["INV_TABLE"], pd.DataFrame):
-    st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
-
+sync_editor()  # ← FUERZA SINCRONÍA AUTOMÁTICA
 df_edit = st.session_state["memory"][key_base]
+
 
 
 
@@ -277,6 +282,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
