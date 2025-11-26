@@ -162,19 +162,19 @@ if df_sel.empty:
 
 
 # =========================================================
-# TABLA EDITABLE con MEMORIA TOTAL (ÁREA / CATEGORIA / SUBFAM)
+# TABLA EDITABLE CON MEMORIA (SIN DOBLE ESCRITURA)
 # =========================================================
 
-tabla_key = f"{area}|{categoria}|{subfam}"
+tabla_key = f"{area}|{categoria}|{subfam}"  # UNA SOLA CLAVE 💥
 
-# Si no existe aún, crear una base inicial
+# Crear tabla si no existe aún
 if tabla_key not in st.session_state:
     base = {
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
         "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0] * len(df_sel),
-        "ABIERTO(PESO)": [0.0] * len(df_sel),
+        "ABIERTO(PESO)": [0.0] * len(df_sel)
     }
 
     if area.upper() == "BARRA":
@@ -182,24 +182,25 @@ if tabla_key not in st.session_state:
     else:
         base["BOTELLAS_ABIERTAS"] = [""] * len(df_sel)
 
-    st.session_state[tabla_key] = pd.DataFrame(base)
+    st.session_state[tabla_key] = pd.DataFrame(base)  # Guarda la tabla inicial
 
-# 🔥 Siempre cargamos lo que haya guardado ya en memoria
-tabla = st.session_state[tabla_key].copy()
 
-st.subheader("Ingresar inventario (con memoria activa)")
+# 🔥 USAR DIRECTAMENTE session_state SIEMPRE
+df_edit = st.session_state[tabla_key]
 
-# STREAMLIT NO BORRARÁ VALORES AHORA
+
+st.subheader("Ingresar inventario (SIN DOBLE ENTRADA)")
+
 df_edit = st.data_editor(
-    tabla,
+    df_edit,
     key=f"editor_{tabla_key}",
     use_container_width=True,
-    disabled=["PRODUCTO","UNIDAD","MEDIDA"],
-    on_change=lambda: None  # ← evita doble ingreso
+    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"]
 )
 
-# 🔥 Guardar INMEDIATAMENTE después de editar
+# 🔥🔥 Guardar al instante sin esperar recarga 🔥🔥
 st.session_state[tabla_key] = df_edit.copy()
+
 
 
 # =========================================================
@@ -411,6 +412,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
