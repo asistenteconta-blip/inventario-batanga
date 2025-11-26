@@ -108,7 +108,7 @@ fecha_str = fecha.strftime("%d-%m-%Y")
 st.markdown("### Selección de productos")
 
 # ========= filtros =========
-areas = sorted(df["ÁREA"].unique())
+areas = sorted([a for a in df["ÁREA"].unique() if str(a).upper() != "GASTO"])
 area = st.selectbox("Área:",areas)
 
 df_area = df[df["ÁREA"]==area]
@@ -286,3 +286,4 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Operación cancelada.")
+
