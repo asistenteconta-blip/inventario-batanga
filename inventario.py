@@ -116,36 +116,35 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 
 if df_sel.empty: st.stop()
 
-# =========================================================
-# 🔥 TABLA CON MEMORIA REAL (NO SE BORRA EL PRIMER INPUT)
-# =========================================================
-mem_key=f"{area}|{categoria}|{subfam}|{prod_sel}"
+# ================================ 
+# 🔥 TABLA CON MEMORIA (SIN DOBLE INGRESO)
+# ================================
 
-if mem_key not in st.session_state["memory"]:
-    st.session_state["memory"][mem_key]=pd.DataFrame({
-        "PRODUCTO":df_sel["PRODUCTO GENÉRICO"].values,
-        "UNIDAD":df_sel["UNIDAD RECETA"].values,
-        "MEDIDA":df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
-        "CERRADO":[0.0]*len(df_sel),
-        "ABIERTO(PESO)":[0.0]*len(df_sel),
-        "BOTELLAS_ABIERTAS":[0.0 if area.upper()=="BARRA" else ""]*len(df_sel)
+key = f"{area}|{categoria}|{subfam}|{prod_sel}"
+
+# Crear la tabla la primera vez
+if key not in st.session_state["memory"]:
+    st.session_state["memory"][key] = pd.DataFrame({
+        "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].values,
+        "UNIDAD": df_sel["UNIDAD RECETA"].values,
+        "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].values,
+        "CERRADO": [0.0] * len(df_sel),
+        "ABIERTO(PESO)": [0.0] * len(df_sel),
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
     })
 
-df_edit=st.session_state["memory"][mem_key].copy()
+st.subheader("Ingresar inventario")
 
-# 🔥 TIPADO NUMÉRICO → elimina por completo el doble ingreso
-for col in ["CERRADO","ABIERTO(PESO)","BOTELLAS_ABIERTAS"]:
-    if col in df_edit.columns:
-        df_edit[col]=pd.to_numeric(df_edit[col],errors="coerce").fillna(0.0)
-
+# 🔥 Renderizamos usando la **tabla viva**, no una copia
 df_edit = st.data_editor(
-    df_edit,
-    key=f"ED_{mem_key}",
+    st.session_state["memory"][key],
+    key=f"E_{key}",
     use_container_width=True,
     disabled=["PRODUCTO","UNIDAD","MEDIDA"]
 )
 
-st.session_state["memory"][mem_key]=df_edit.copy()  # se guarda al instante
+# 🔥 Guardar en memoria INMEDIATAMENTE → evita el borrado
+st.session_state["memory"][key] = df_edit
 
 # =========================================================
 # VISTA PREVIA
@@ -255,6 +254,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
