@@ -181,7 +181,7 @@ if tabla_key not in st.session_state:
 # 🟢 siempre se usa la versión guardada, NUNCA se reconstruye
 df_edit = st.session_state[tabla_key]
 
-st.subheader("Ingresar Inventario (necesita ingresar los valores dos veces por seguridad")
+st.subheader("Ingresar Inventario (necesita ingresar los valores dos veces por seguridad)")
 
 df_edit = st.data_editor(
     df_edit,
@@ -406,6 +406,7 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
 
 
 
