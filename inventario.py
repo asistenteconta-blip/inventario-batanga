@@ -117,12 +117,11 @@ df_sel=df_sf if prod_sel=="TODOS" else df_sf[df_sf["PRODUCTO GENÉRICO"]==prod_s
 if df_sel.empty: st.stop()
 
 # =========================================================
-# 🔥 TABLA CON MEMORIA SIN DOBLE DIGITACIÓN + PERSISTENTE
+# 🔥 TABLA CON MEMORIA SIN DOBLE DIGITACIÓN 100% REAL
 # =========================================================
 
 key_base = f"{area}|{categoria}|{subfam}"
 
-# 🔹 Si no existe memoria para esta combinación, la creamos
 if key_base not in st.session_state["memory"]:
     st.session_state["memory"][key_base] = pd.DataFrame({
         "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
@@ -130,28 +129,37 @@ if key_base not in st.session_state["memory"]:
         "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
         "CERRADO": [0.0] * len(df_sel),
         "ABIERTO(PESO)": [0.0] * len(df_sel),
-        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel)
+        "BOTELLAS_ABIERTAS": [0.0 if area.upper()=="BARRA" else ""] * len(df_sel),
     })
 
-# ------ CLAVE PARA ELIMINAR LA DOBLE DIGITACIÓN 🔥 ------
+# ================= FIX ANTI-DOBLE-ESCRITURA ==================
+# Copiamos antes de mostrar — esto es lo que el usuario edita
 df_edit = st.session_state["memory"][key_base].copy()
 
-def update_memory():
-    st.session_state["memory"][key_base] = st.session_state["EDIT_TABLE"].copy()
+
+def sync_editor():
+    """Guarda inmediatamente cada cambio antes del rerender."""
+    st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
+
 
 st.subheader("Ingresar inventario")
 
 df_edit = st.data_editor(
     df_edit,
-    key="EDIT_TABLE",
+    key="INV_TABLE",
     use_container_width=True,
     disabled=["PRODUCTO","UNIDAD","MEDIDA"],
-    on_change=update_memory   # Guardado inmediato sin doble entrada
+    on_change=sync_editor,     # ←🔥 GUARDADO INMEDIATO
 )
 
-# Refresca siempre con la versión más reciente
-st.session_state["memory"][key_base] = st.session_state["EDIT_TABLE"].copy()
+# Sincroniza SIEMPRE — cubre casos donde no hay cambio explícito
+st.session_state["memory"][key_base] = st.session_state["INV_TABLE"].copy()
+
+# =========================================================
+# df_edit ahora SIEMPRE refleja lo último escrito 💚
+# =========================================================
 df_edit = st.session_state["memory"][key_base]
+
 
 
 
@@ -263,6 +271,7 @@ if st.session_state["confirm_reset"]:
         if st.button("Cancelar"):
             st.session_state["confirm_reset"]=False
             st.info("Cancelado.")
+
 
 
 
