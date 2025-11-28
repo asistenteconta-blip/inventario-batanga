@@ -166,6 +166,7 @@ prev = st.session_state["preview_global"]
 st.dataframe(prev, use_container_width=True)
 
 
+
 # =========================================================
 # GUARDAR A SHEETS DESDE VISTA PREVIA
 # =========================================================
@@ -194,7 +195,8 @@ def guardar_inventario():
         updates.append({"range": f"{colletter(h['FECHA'])}{row}", "values": [[fecha_str]]})
 
     ws.batch_update(updates)
-    st.success("✔ Inventario Guardado en Google Sheets")
+    st.success("✔ Inventario guardado en Google Sheets")
 
 
 
+st.button("💾 GUARDAR INVENTARIO",on_click=guardar)
