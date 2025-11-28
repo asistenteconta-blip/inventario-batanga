@@ -174,20 +174,27 @@ ws=get_sheet(area)
 h=get_headers(ws)
 rows=get_rows(ws,h["PRODUCTO GENÉRICO"])
 
-def guardar():
+def guardar_inventario():
+    if prev.empty:
+        st.warning("No hay nada para guardar.")
+        return
+    
     updates=[]
-    for _,r in prev.iterrows():
-        p=r["PRODUCTO"].upper()
-        if p not in rows: continue
-        row=rows[p]
+    ws = get_sheet(area)
+    h  = get_headers(ws)
+    rows = get_rows(ws, h["PRODUCTO GENÉRICO"])
 
-        updates.append({"range":f"{colletter(h['CANTIDAD CERRADO'])}{row}","values":[[float(r['CERRADO'])]]})
-        updates.append({"range":f"{colletter(h['CANTIDAD ABIERTO (PESO)'])}{row}","values":[[float(r['ABIERTO(PESO)'])]]})
-        updates.append({"range":f"{colletter(h['FECHA'])}{row}","values":[[fecha_str]]})
+    for _, r in prev.iterrows():
+        prod = r["PRODUCTO"].upper()
+        if prod not in rows: continue
+        row = rows[prod]
+
+        updates.append({"range": f"{colletter(h['CANTIDAD CERRADO'])}{row}", "values": [[float(r['CERRADO'])]]})
+        updates.append({"range": f"{colletter(h['CANTIDAD ABIERTO (PESO)'])}{row}", "values": [[float(r['ABIERTO(PESO)'])]]})
+        updates.append({"range": f"{colletter(h['FECHA'])}{row}", "values": [[fecha_str]]})
 
     ws.batch_update(updates)
-    st.success("✔ Guardado exitoso desde Vista Previa")
+    st.success("✔ Inventario Guardado en Google Sheets")
 
 
-st.button("💾 GUARDAR INVENTARIO",on_click=guardar)
 
