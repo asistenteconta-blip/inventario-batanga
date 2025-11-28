@@ -140,22 +140,30 @@ df_edit = st.data_editor(tabla,use_container_width=True,disabled=["PRODUCTO","UN
 
 
 # =========================================================
-# VISTA PREVIA GLOBAL (SE GUARDA SOLO AQUÍ)
+# 📌 VISTA PREVIA GLOBAL (GUARDA TODO LO QUE INGRESES)
 # =========================================================
 
-st.subheader("📊 Vista Previa Global")
+st.subheader("📊 Vista Previa (se conserva aunque cambies de categoría)")
 
-if "preview" not in st.session_state:
-    st.session_state["preview"]=pd.DataFrame(columns=df_edit.columns)
+# Crear storage global una sola vez
+if "preview_global" not in st.session_state:
+    st.session_state["preview_global"] = pd.DataFrame(columns=df_edit.columns)
 
-# Agrega pero reemplaza productos repetidos
-st.session_state["preview"]=pd.concat([st.session_state["preview"],df_edit])
-st.session_state["preview"].drop_duplicates("PRODUCTO",keep="last",inplace=True)
+# Tomar SOLO productos con valores > 0
+entrada = df_edit[
+    (df_edit["CERRADO"] != 0) | 
+    (df_edit["ABIERTO(PESO)"] != 0) |
+    (df_edit["BOTELLAS_ABIERTAS"].fillna(0) != 0 if "BOTELLAS_ABIERTAS" in df_edit else False)
+]
 
-prev=st.session_state["preview"]
-prev=prev[(prev["CERRADO"]!=0)|(prev["ABIERTO(PESO)"]!=0)]
+# 🔥 Añadir los nuevos registros sin perder los anteriores
+if not entrada.empty:
+    st.session_state["preview_global"] = pd.concat([st.session_state["preview_global"], entrada])
+    st.session_state["preview_global"].drop_duplicates("PRODUCTO", keep="last", inplace=True)
 
-st.dataframe(prev,use_container_width=True)
+# Mostrar vista previa persistente
+prev = st.session_state["preview_global"]
+st.dataframe(prev, use_container_width=True)
 
 
 # =========================================================
@@ -182,3 +190,4 @@ def guardar():
 
 
 st.button("💾 GUARDAR INVENTARIO",on_click=guardar)
+
