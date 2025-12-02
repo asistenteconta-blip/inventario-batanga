@@ -29,7 +29,7 @@ doc = get_doc()
 # HOJAS / CONFIG GENERAL
 # =========================================================
 
-BD_TAB = "BD_productos"
+BD_TAB = "BD_PRODUCTOS"
 INV_CO = "INVENTARIO_COCINA"
 INV_SU = "INVENTARIO_SUMINISTROS"
 INV_BA = "INVENTARIO_BARRA"
@@ -368,5 +368,6 @@ if st.session_state["confirm_reset"]:
     with c2:
         if st.button("✖ Cancelar"):
             st.session_state["confirm_reset"] = False
+
 
 
