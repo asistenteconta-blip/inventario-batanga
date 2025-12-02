@@ -13,7 +13,7 @@ scope = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-DOC_NAME = "Copia de MACHOTE INV BATANGA DDMMAAAA  ACT25"
+DOC_NAME = "INVENTARIO BATANGA CIERRE FORM"
 
 service_info = st.secrets["google_service_account"]
 credentials = Credentials.from_service_account_info(service_info, scopes=scope)
@@ -368,4 +368,5 @@ if st.session_state["confirm_reset"]:
     with c2:
         if st.button("✖ Cancelar"):
             st.session_state["confirm_reset"] = False
+
 
