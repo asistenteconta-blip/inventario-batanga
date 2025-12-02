@@ -367,4 +367,5 @@ if st.session_state["confirm_reset"]:
 
     with c2:
         if st.button("✖ Cancelar"):
-            st.session_state["confirm_reset"] = False
+            st.session_state["confirm_reset"] = False
+
