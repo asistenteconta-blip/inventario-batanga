@@ -283,57 +283,94 @@ col_fecha    = headers.get("FECHA")
 # =========================================================
 
 def guardar_desde_preview():
-    if st.session_state["preview_global"].empty:
-        st.warning("No hay productos en la vista previa para guardar.")
-        return
 
     updates = []
 
-    for _, r in st.session_state["preview_global"].iterrows():
+    # Nada que guardar
+    if "vista_global" not in st.session_state:
+        st.warning("No hay datos en la vista previa global para guardar.")
+        return
+
+    tabla = st.session_state["vista_global"]
+
+    # Cargar headers nuevamente
+    ws = get_sheet(area)
+    headers = get_headers(ws)
+
+    col_prod = headers.get("PRODUCTO GENÉRICO")
+    col_cer = headers.get("CANTIDAD CERRADO")
+    col_abi = headers.get("CANTIDAD ABIERTO (PESO)")
+    col_bot = headers.get("CANTIDAD BOTELLAS ABIERTAS")
+    col_fecha = headers.get("FECHA")
+
+    if col_prod is None:
+        st.error("Error: No existe columna PRODUCTO GENÉRICO en la hoja.")
+        return
+
+    rows = get_rows(ws, col_prod)
+
+    for _, r in tabla.iterrows():
+
         prod = str(r["PRODUCTO"]).strip().upper()
-        if prod not in rows_map:
+        if prod not in rows:
             continue
+        
+        row = rows[prod]
 
-        row_idx = rows_map[prod]
-
-        # CERRADO
-        if col_cerrado:
-            val_c = r.get("CERRADO", 0) or 0
-            updates.append({
-                "range": f"{colletter(col_cerrado)}{row_idx}",
-                "values": [[float(val_c)]],
-            })
-
-        # ABIERTO PESO
-        if col_abierto and "ABIERTO(PESO)" in r:
-            val_a = r.get("ABIERTO(PESO)", 0) or 0
-            updates.append({
-                "range": f"{colletter(col_abierto)}{row_idx}",
-                "values": [[float(val_a)]],
-            })
-
-        # BOTELLAS ABIERTAS solo barra
-        if area.upper() == "BARRA" and col_botellas:
-            vb = r.get("BOTELLAS_ABIERTAS", 0)
+        # ----------- CONVERTIR Y LIMPIAR VALORES -----------
+        def to_number(v):
             try:
-                vb = float(vb) if vb not in ["", None] else 0
+                if v in ["", None, "None"]:
+                    return 0
+                return float(v)
             except:
-                vb = 0
+                return 0
+
+        cerrado = to_number(r.get("CERRADO", 0))
+        abierto = to_number(r.get("ABIERTO(PESO)", 0))
+        botellas = to_number(r.get("BOTELLAS_ABIERTAS", 0))
+
+        # ------------------- ACTUALIZAR ---------------------
+        if col_cer:
             updates.append({
-                "range": f"{colletter(col_botellas)}{row_idx}",
-                "values": [[vb]],
+                "range": f"{colletter(col_cer)}{row}",
+                "values": [[cerrado]]
             })
 
-        # FECHA
+        if col_abi:
+            updates.append({
+                "range": f"{colletter(col_abi)}{row}",
+                "values": [[abierto]]
+            })
+
+        if area.upper() == "BARRA" and col_bot:
+            updates.append({
+                "range": f"{colletter(col_bot)}{row}",
+                "values": [[botellas]]
+            })
+
         if col_fecha:
             updates.append({
-                "range": f"{colletter(col_fecha)}{row_idx}",
-                "values": [[fecha_str]],
+                "range": f"{colletter(col_fecha)}{row}",
+                "values": [[fecha_str]]
             })
+
+    # 🔥 VALIDAR QUE ALLÁ NO HAYA VALORES DAÑADOS
+    for u in updates:
+        if "values" not in u:
+            st.error("ERROR: values no está presente en un update.")
+            return
+
+        # Validación JSON segura
+        vals = u["values"][0][0]
+        if isinstance(vals, float):
+            if str(vals) == "nan":
+                st.error("ERROR: se intentó enviar un NaN a Google Sheets.")
+                return
 
     if updates:
         ws.batch_update(updates)
-        st.success("✅ Inventario guardado en Google Sheets desde la vista previa global.")
+        st.success("Inventario guardado desde vista previa ✔", icon="💾")
 
 
 # =========================================================
@@ -433,3 +470,4 @@ if st.session_state["confirm_reset"]:
         if st.button("❌ Cancelar"):
             st.info("Operación cancelada. No se modificó nada.")
             st.session_state["confirm_reset"] = False
+
