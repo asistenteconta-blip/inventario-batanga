@@ -40,7 +40,7 @@ if "confirm_reset" not in st.session_state:
     st.session_state["confirm_reset"] = False
 
 # =========================================================
-# FUNCIONES GLOBALES
+# FUNCIONES
 # =========================================================
 
 def colletter(n):
@@ -75,8 +75,10 @@ def load_area_products(area):
     data = raw[DATA_START - 1:]
     df = pd.DataFrame(data, columns=headers)
     df.columns = df.columns.str.upper().str.strip()
+
     df = df[df["PRODUCTO GENÉRICO"].notna()]
     df = df[df["PRODUCTO GENÉRICO"].astype(str).str.strip() != ""]
+
     return df
 
 def get_headers(ws):
@@ -92,16 +94,15 @@ def get_rows(ws, col):
     }
 
 # =========================================================
-# UI
+# UI PRINCIPAL
 # =========================================================
 
 st.title("📦 Inventario Diario — Batanga")
 st.warning("""
-- ⚠ Verifica antes de guardar.
-- ⚠ Reset borra todos los datos de google sheets del área actual.
-- ⚠ Usa el botón de guardar comentario hasta terminar todo el inventario.
+⚠ Verifica antes de guardar.
+⚠ Reset borra todos los datos de Google Sheets del área actual.
+⚠ Usa el botón de guardar comentario hasta terminar todo el inventario.
 """)
-
 
 fecha = st.date_input("Fecha:", date.today())
 fecha_str = fecha.strftime("%d-%m-%Y")
@@ -111,7 +112,10 @@ area = st.selectbox("Área:", areas)
 
 df_area = load_area_products(area)
 
-# Filtros
+# =========================================================
+# FILTROS
+# =========================================================
+
 if "CATEGORIA" in df_area.columns:
     categorias = ["TODOS"] + sorted(df_area["CATEGORIA"].dropna().unique())
     categoria = st.selectbox("Categoría:", categorias)
@@ -134,13 +138,15 @@ if df_sel.empty:
     st.stop()
 
 # =========================================================
-# TABLA
+# TABLA EDITABLE (Entrada)
 # =========================================================
 
 tabla = {
     "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
     "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
     "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
+    "PRECIO NETO": df_sel["PRECIO NETO"].astype(float).tolist(),
+    "COSTO X UNIDAD": df_sel["COSTO X UNIDAD"].astype(float).tolist(),
     "CERRADO": [0] * len(df_sel),
     "ABIERTO(PESO)": [0] * len(df_sel),
 }
@@ -149,54 +155,36 @@ tabla["BOTELLAS_ABIERTAS"] = [0] * len(df_sel) if area == "BARRA" else [""] * le
 
 df_tabla = pd.DataFrame(tabla)
 
+# Convertir numéricos
 for c in ["CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]:
     if c in df_tabla.columns:
-        df_tabla[c] = (
-            df_tabla[c]
-            .astype(str)
-            .str.replace(",", ".", regex=False)
-            .str.strip()
-        )
-
         df_tabla[c] = pd.to_numeric(df_tabla[c], errors="coerce").fillna(0)
 
-for c in ["CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]:
-    if c in df_tabla.columns:
-        df_tabla[c] = df_tabla[c].astype(float)
-
+# Editor
 df_edit = st.data_editor(
     df_tabla,
-    disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
+    disabled=["PRODUCTO", "UNIDAD", "MEDIDA", "PRECIO NETO", "COSTO X UNIDAD"],
     use_container_width=True,
-    column_config={
-        "CERRADO": st.column_config.NumberColumn(
-            "CERRADO",
-            format="%.10g"   # muestra 0, 1.25, 0.5 sin forzar decimales
-        ),
-        "ABIERTO(PESO)": st.column_config.NumberColumn(
-            "ABIERTO (PESO)",
-            format="%.10g"
-        ),
-        "BOTELLAS_ABIERTAS": st.column_config.NumberColumn(
-            "BOTELLAS ABIERTAS",
-            format="%.0f"    # solo enteros visibles
-        ),
-    }
 )
 
+# =========================================================
+# CALCULO VALOR DE INVENTARIO
+# =========================================================
 
-
-
+df_edit["VALOR INVENTARIO"] = (
+    df_edit["CERRADO"] * df_edit["PRECIO NETO"]
+    + df_edit["ABIERTO(PESO)"] * df_edit["COSTO X UNIDAD"]
+)
 
 # =========================================================
-# PREVIEW POR ÁREA
+# PREVIEW POR AREA
 # =========================================================
 
 if "preview_por_area" not in st.session_state:
     st.session_state["preview_por_area"] = {
-        "COCINA": pd.DataFrame(columns=["PRODUCTO", "CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]),
-        "SUMINISTROS": pd.DataFrame(columns=["PRODUCTO", "CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]),
-        "BARRA": pd.DataFrame(columns=["PRODUCTO", "CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]),
+        "COCINA": pd.DataFrame(),
+        "SUMINISTROS": pd.DataFrame(),
+        "BARRA": pd.DataFrame(),
     }
 
 mask = (df_edit["CERRADO"] != 0) | (df_edit["ABIERTO(PESO)"] != 0)
@@ -207,20 +195,24 @@ entrada = df_edit[mask].copy()
 
 if not entrada.empty:
     prev = st.session_state["preview_por_area"][area]
-    prev = prev[~prev["PRODUCTO"].isin(entrada["PRODUCTO"])]
+    if not prev.empty:
+        prev = prev[~prev["PRODUCTO"].isin(entrada["PRODUCTO"])]
     prev = pd.concat([prev, entrada], ignore_index=True)
     st.session_state["preview_por_area"][area] = prev
 
 st.subheader("Vista previa")
 
 prev = st.session_state["preview_por_area"][area]
+
+# OCULTAR CAMPOS EN VISTA PREVIA
 if not prev.empty:
-    st.dataframe(prev, use_container_width=True)
+    prev_vista = prev.drop(columns=["UNIDAD","MEDIDA","PRECIO NETO","COSTO X UNIDAD"])
+    st.dataframe(prev_vista, use_container_width=True)
 else:
     st.info("Sin registros aún.")
 
 # =========================================================
-# GUARDAR
+# GUARDAR A GOOGLE SHEETS
 # =========================================================
 
 def guardar():
@@ -231,7 +223,6 @@ def guardar():
 
     ws = get_sheet(area)
     headers = get_headers(ws)
-
     col_prod = headers.get("PRODUCTO GENÉRICO")
     rows = get_rows(ws, col_prod)
 
@@ -243,11 +234,13 @@ def guardar():
         if not row:
             continue
 
-        for campo, colname in [
+        campos = [
             ("CERRADO", "CANTIDAD CERRADO"),
             ("ABIERTO(PESO)", "CANTIDAD ABIERTO (PESO)"),
             ("BOTELLAS_ABIERTAS", "CANTIDAD BOTELLAS ABIERTAS"),
-        ]:
+        ]
+
+        for campo, colname in campos:
             col = headers.get(colname)
             if col:
                 updates.append({
@@ -259,14 +252,14 @@ def guardar():
         if col_fecha:
             updates.append({
                 "range": f"{colletter(col_fecha)}{row}",
-                "values": [[str(fecha_str)]]
+                "values": [[fecha_str]]
             })
 
     ws.batch_update(updates)
     st.success("Inventario guardado ✔")
 
 # =========================================================
-# RESET
+# RESET + BORRAR COMENTARIO
 # =========================================================
 
 def resetear():
@@ -275,9 +268,8 @@ def resetear():
     rows = get_rows(ws, headers.get("PRODUCTO GENÉRICO"))
 
     updates = []
-
     for row in rows.values():
-        for campo in ["CANTIDAD CERRADO", "CANTIDAD ABIERTO (PESO)", "CANTIDAD BOTELLAS ABIERTAS"]:
+        for campo in ["CANTIDAD CERRADO","CANTIDAD ABIERTO (PESO)","CANTIDAD BOTELLAS ABIERTAS"]:
             col = headers.get(campo)
             if col:
                 updates.append({"range": f"{colletter(col)}{row}", "values": [[0]]})
@@ -286,12 +278,12 @@ def resetear():
         if col_f:
             updates.append({"range": f"{colletter(col_f)}{row}", "values": [[""]]})
 
+    # BORRAR COMENTARIO
     updates.append({"range": "C3", "values": [[""]]})
+
     ws.batch_update(updates)
 
-    st.session_state["preview_por_area"][area] = pd.DataFrame(
-        columns=["PRODUCTO", "CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]
-    )
+    st.session_state["preview_por_area"][area] = pd.DataFrame()
 
     st.success("Área reseteada ✔")
 
@@ -329,13 +321,3 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
-
-
-
-
-
-
-
-
-
-
