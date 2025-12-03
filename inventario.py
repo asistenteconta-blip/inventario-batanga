@@ -145,8 +145,14 @@ tabla = {
     "PRODUCTO": df_sel["PRODUCTO GENÉRICO"].tolist(),
     "UNIDAD": df_sel["UNIDAD RECETA"].tolist(),
     "MEDIDA": df_sel["CANTIDAD DE UNIDAD DE MEDIDA"].tolist(),
-    "PRECIO NETO": df_sel["PRECIO NETO"].astype(float).tolist(),
-    "COSTO X UNIDAD": df_sel["COSTO X UNIDAD"].astype(float).tolist(),
+ "PRECIO NETO": pd.to_numeric(
+    df_sel["PRECIO NETO"].astype(str).str.replace(",", ".", regex=False).str.strip(),
+    errors="coerce"
+).fillna(0).tolist(),
+"COSTO X UNIDAD": pd.to_numeric(
+    df_sel["COSTO X UNIDAD"].astype(str).str.replace(",", ".", regex=False).str.strip(),
+    errors="coerce"
+).fillna(0).tolist(),
     "CERRADO": [0] * len(df_sel),
     "ABIERTO(PESO)": [0] * len(df_sel),
 }
@@ -321,3 +327,4 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
