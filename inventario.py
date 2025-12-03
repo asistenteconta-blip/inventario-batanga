@@ -147,25 +147,28 @@ tabla = {
 
 tabla["BOTELLAS_ABIERTAS"] = [0] * len(df_sel) if area == "BARRA" else [""] * len(df_sel)
 
+df_tabla = pd.DataFrame(tabla)
+
+for c in ["CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]:
+    if c in df_tabla.columns:
+        df_tabla[c] = df_tabla[c].astype(float)
+
 df_edit = st.data_editor(
-    pd.DataFrame(tabla),
+    df_tabla,
     disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
     use_container_width=True,
     column_config={
         "CERRADO": st.column_config.NumberColumn(
             "CERRADO",
-            step=None,      # permite decimales infinitos
-            format="%g"     # oculta .0 automáticamente
+            format="%.10g"   # muestra 0, 1.25, 0.5 sin forzar decimales
         ),
         "ABIERTO(PESO)": st.column_config.NumberColumn(
             "ABIERTO (PESO)",
-            step=None,
-            format="%g"
+            format="%.10g"
         ),
         "BOTELLAS_ABIERTAS": st.column_config.NumberColumn(
             "BOTELLAS ABIERTAS",
-            step=1,         # aquí solo enteros
-            format="%g"
+            format="%.0f"    # solo enteros visibles
         ),
     }
 )
@@ -315,6 +318,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
