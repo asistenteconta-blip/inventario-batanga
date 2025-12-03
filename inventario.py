@@ -99,9 +99,9 @@ def get_rows(ws, col):
 
 st.title("📦 Inventario — Batanga")
 st.warning("""
-⚠ Verifica antes de guardar.
-⚠ Reset borra todos los datos de Google Sheets del área actual.
-⚠ Usa el botón de guardar comentario hasta terminar todo el inventario.
+- ⚠ Verifica antes de guardar.
+- ⚠ Reset borra todos los datos del área actual.
+- ⚠ Usa el botón de guardar comentario al terminar.
 """)
 
 fecha = st.date_input("Fecha:", date.today())
@@ -368,6 +368,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
