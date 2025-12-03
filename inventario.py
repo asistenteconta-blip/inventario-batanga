@@ -97,7 +97,7 @@ def get_rows(ws, col):
 # UI PRINCIPAL
 # =========================================================
 
-st.title("📦 Inventario Diario — Batanga")
+st.title("📦 Inventario Diario")
 st.warning("""
 ⚠ Verifica antes de guardar.
 ⚠ Reset borra todos los datos de Google Sheets del área actual.
@@ -359,6 +359,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
