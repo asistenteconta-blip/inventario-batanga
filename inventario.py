@@ -333,7 +333,6 @@ def resetear():
     st.session_state["preview_por_area"][area] = pd.DataFrame()
     st.session_state["comentario"] = ""
 
-    st.success("Área reseteada ✔")
 
 # =========================================================
 # BOTONES
@@ -369,6 +368,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
