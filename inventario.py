@@ -96,7 +96,9 @@ def get_rows(ws, col):
 # =========================================================
 
 st.title("📦 Inventario Diario — Batanga")
-st.warning("⚠ Verifica antes de guardar.\n⚠ Reset borra solo el área actual.")
+st.warning("⚠ Verifica antes de guardar.
+\⚠ Reset borra solo el área actual.
+\⚠ Usar el boton de guardar comentario hasta terminar todo el inventario")
 
 fecha = st.date_input("Fecha:", date.today())
 fecha_str = fecha.strftime("%d-%m-%Y")
@@ -289,3 +291,4 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
