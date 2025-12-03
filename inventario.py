@@ -222,14 +222,15 @@ st.subheader("Vista previa")
 
 prev = st.session_state["preview_por_area"][area]
 
-# OCULTAR CAMPOS EN VISTA PREVIA - SIN ERRORES
-ocultar_cols = ["UNIDAD", "MEDIDA", "PRECIO NETO", "COSTO X UNIDAD"]
+# OCULTAR CAMPOS INTERNOS
+ocultar_cols = ["UNIDAD", "MEDIDA", "_PRECIO_NETO", "_COSTO_X_UNIDAD"]
 
 if not prev.empty:
     prev_vista = prev.drop(columns=[c for c in ocultar_cols if c in prev.columns])
-    st.dataframe(prev_vista, use_container_width=True)
+    st.dataframe(prev_vista, use_container_width=True, hide_index=True)
 else:
     st.info("Sin registros aún.")
+
 
 
 # =========================================================
@@ -358,6 +359,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
