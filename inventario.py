@@ -154,21 +154,22 @@ df_edit = st.data_editor(
     column_config={
         "CERRADO": st.column_config.NumberColumn(
             "CERRADO",
-            step=0.1,
-            format="%g"
+            step=None,      # permite decimales infinitos
+            format="%g"     # oculta .0 automáticamente
         ),
         "ABIERTO(PESO)": st.column_config.NumberColumn(
             "ABIERTO (PESO)",
-            step=0.1,
+            step=None,
             format="%g"
         ),
         "BOTELLAS_ABIERTAS": st.column_config.NumberColumn(
             "BOTELLAS ABIERTAS",
-            step=1,
+            step=1,         # aquí solo enteros
             format="%g"
         ),
     }
 )
+
 
 
 
@@ -314,6 +315,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
