@@ -290,8 +290,10 @@ def resetear():
     rows = get_rows(ws, headers.get("PRODUCTO GENÉRICO"))
 
     updates = []
-    
-    # Reset de inventario
+
+    # =====================================================
+    # RESET DE INVENTARIO
+    # =====================================================
     for row in rows.values():
         for campo in ["CANTIDAD CERRADO", "CANTIDAD ABIERTO (PESO)", "CANTIDAD BOTELLAS ABIERTAS"]:
             col = headers.get(campo)
@@ -301,6 +303,7 @@ def resetear():
                     "values": [[0]]
                 })
 
+        # Reset de fecha
         col_fecha = headers.get("FECHA")
         if col_fecha:
             updates.append({
@@ -308,42 +311,27 @@ def resetear():
                 "values": [[""]]
             })
 
-    # BORRAR COMENTARIO SOLO UNA VEZ
-    updates.append({"range": "C3", "values": [[""]]})
-
-    # Enviar batch update una sola vez
-    if updates:
-        ws.batch_update(updates)
-
-    # Reset vista previa del área
-    st.session_state["preview_por_area"][area] = pd.DataFrame()
-
-    # Reset comentario en pantalla
-    st.session_state["comentario"] = ""
-
-    st.success("Área reseteada ✔")
-
-    # BORRAR COMENTARIO TAMBIÉN AQUÍ
-    updates.append({"range": "C3", "values": [[""]]})
-
-    ws.batch_update(updates)
-
-    # Reset vista previa del área
-    st.session_state["preview_por_area"][area] = pd.DataFrame()
-
-    # Reset comentario en pantalla
-    if "comentario" in st.session_state:
-        st.session_state["comentario"] = ""
-
-    st.success("Área reseteada ✔")
-
-
+    # =====================================================
     # BORRAR COMENTARIO
+    # =====================================================
     updates.append({"range": "C3", "values": [[""]]})
 
-    ws.batch_update(updates)
+    # =====================================================
+    # ENVIAR TODO EN UN SOLO BATCH
+    # =====================================================
+    if updates:
+        try:
+            ws.batch_update(updates)
+            st.success("Área reseteada ✔")
+        except gspread.exceptions.APIError as e:
+            st.error(f"Error al resetear: {e}")
+            return
 
+    # =====================================================
+    # RESET DE SESIÓN LOCAL
+    # =====================================================
     st.session_state["preview_por_area"][area] = pd.DataFrame()
+    st.session_state["comentario"] = ""
 
     st.success("Área reseteada ✔")
 
@@ -381,6 +369,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
