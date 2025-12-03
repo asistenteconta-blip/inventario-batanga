@@ -290,16 +290,38 @@ def resetear():
     rows = get_rows(ws, headers.get("PRODUCTO GENÉRICO"))
 
     updates = []
+    
     # Reset de inventario
     for row in rows.values():
         for campo in ["CANTIDAD CERRADO", "CANTIDAD ABIERTO (PESO)", "CANTIDAD BOTELLAS ABIERTAS"]:
             col = headers.get(campo)
             if col:
-                updates.append({"range": f"{colletter(col)}{row}", "values": [[0]]})
+                updates.append({
+                    "range": f"{colletter(col)}{row}",
+                    "values": [[0]]
+                })
 
-        col_f = headers.get("FECHA")
-        if col_f:
-            updates.append({"range": f"{colletter(col_f)}{row}", "values": [[""]]})
+        col_fecha = headers.get("FECHA")
+        if col_fecha:
+            updates.append({
+                "range": f"{colletter(col_fecha)}{row}",
+                "values": [[""]]
+            })
+
+    # BORRAR COMENTARIO SOLO UNA VEZ
+    updates.append({"range": "C3", "values": [[""]]})
+
+    # Enviar batch update una sola vez
+    if updates:
+        ws.batch_update(updates)
+
+    # Reset vista previa del área
+    st.session_state["preview_por_area"][area] = pd.DataFrame()
+
+    # Reset comentario en pantalla
+    st.session_state["comentario"] = ""
+
+    st.success("Área reseteada ✔")
 
     # BORRAR COMENTARIO TAMBIÉN AQUÍ
     updates.append({"range": "C3", "values": [[""]]})
@@ -359,6 +381,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
