@@ -201,8 +201,11 @@ entrada = df_edit[mask].copy()
 
 if not entrada.empty:
     prev = st.session_state["preview_por_area"][area]
+
+    # Quitar items duplicados
     if not prev.empty:
         prev = prev[~prev["PRODUCTO"].isin(entrada["PRODUCTO"])]
+
     prev = pd.concat([prev, entrada], ignore_index=True)
     st.session_state["preview_por_area"][area] = prev
 
@@ -210,12 +213,15 @@ st.subheader("Vista previa")
 
 prev = st.session_state["preview_por_area"][area]
 
-# OCULTAR CAMPOS EN VISTA PREVIA
+# OCULTAR CAMPOS EN VISTA PREVIA - SIN ERRORES
+ocultar_cols = ["UNIDAD", "MEDIDA", "PRECIO NETO", "COSTO X UNIDAD"]
+
 if not prev.empty:
-    prev_vista = prev.drop(columns=["UNIDAD","MEDIDA","PRECIO NETO","COSTO X UNIDAD"])
+    prev_vista = prev.drop(columns=[c for c in ocultar_cols if c in prev.columns])
     st.dataframe(prev_vista, use_container_width=True)
 else:
     st.info("Sin registros aún.")
+
 
 # =========================================================
 # GUARDAR A GOOGLE SHEETS
@@ -274,8 +280,9 @@ def resetear():
     rows = get_rows(ws, headers.get("PRODUCTO GENÉRICO"))
 
     updates = []
+    # Reset de inventario
     for row in rows.values():
-        for campo in ["CANTIDAD CERRADO","CANTIDAD ABIERTO (PESO)","CANTIDAD BOTELLAS ABIERTAS"]:
+        for campo in ["CANTIDAD CERRADO", "CANTIDAD ABIERTO (PESO)", "CANTIDAD BOTELLAS ABIERTAS"]:
             col = headers.get(campo)
             if col:
                 updates.append({"range": f"{colletter(col)}{row}", "values": [[0]]})
@@ -283,6 +290,21 @@ def resetear():
         col_f = headers.get("FECHA")
         if col_f:
             updates.append({"range": f"{colletter(col_f)}{row}", "values": [[""]]})
+
+    # BORRAR COMENTARIO TAMBIÉN AQUÍ
+    updates.append({"range": "C3", "values": [[""]]})
+
+    ws.batch_update(updates)
+
+    # Reset vista previa del área
+    st.session_state["preview_por_area"][area] = pd.DataFrame()
+
+    # Reset comentario en pantalla
+    if "comentario" in st.session_state:
+        st.session_state["comentario"] = ""
+
+    st.success("Área reseteada ✔")
+
 
     # BORRAR COMENTARIO
     updates.append({"range": "C3", "values": [[""]]})
@@ -327,4 +349,5 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
