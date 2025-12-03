@@ -151,7 +151,25 @@ df_edit = st.data_editor(
     pd.DataFrame(tabla),
     disabled=["PRODUCTO", "UNIDAD", "MEDIDA"],
     use_container_width=True,
+    column_config={
+        "CERRADO": st.column_config.NumberColumn(
+            "CERRADO",
+            format="%.2f",
+            step=0.1
+        ),
+        "ABIERTO(PESO)": st.column_config.NumberColumn(
+            "ABIERTO (PESO)",
+            format="%.2f",
+            step=0.1
+        ),
+        "BOTELLAS_ABIERTAS": st.column_config.NumberColumn(
+            "BOTELLAS ABIERTAS",
+            format="%.2f",
+            step=1
+        ),
+    }
 )
+
 
 # =========================================================
 # PREVIEW POR ÁREA
@@ -294,6 +312,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
