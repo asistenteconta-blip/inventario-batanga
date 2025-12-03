@@ -151,6 +151,17 @@ df_tabla = pd.DataFrame(tabla)
 
 for c in ["CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]:
     if c in df_tabla.columns:
+        df_tabla[c] = (
+            df_tabla[c]
+            .astype(str)
+            .str.replace(",", ".", regex=False)
+            .str.strip()
+        )
+
+        df_tabla[c] = pd.to_numeric(df_tabla[c], errors="coerce").fillna(0)
+
+for c in ["CERRADO", "ABIERTO(PESO)", "BOTELLAS_ABIERTAS"]:
+    if c in df_tabla.columns:
         df_tabla[c] = df_tabla[c].astype(float)
 
 df_edit = st.data_editor(
@@ -318,6 +329,7 @@ if st.button("💬 Guardar comentario"):
     ws = get_sheet(area)
     ws.update("C3", [[st.session_state["comentario"]]])
     st.success("Comentario guardado ✔")
+
 
 
 
